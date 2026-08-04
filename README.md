@@ -36,6 +36,29 @@ ghcr.io/sima-vertical-solutions/ros2-sdk-feature-add-navigation:sha-<commit>
 Version tags beginning with `v` publish matching tags on the canonical package.
 Pull requests build the image without publishing it.
 
+## Private ARM64 runner and ROS 2 packages
+
+Image builds run on an organization-managed, native ARM64 macOS runner with
+the standard `self-hosted`, `macOS`, and `ARM64` labels. The runner must have
+Docker available and an active corporate-network connection that can reach
+`sw-web.eng.sima.ai`. CI checks both conditions before checking out or building
+repository code.
+
+For security, pull requests from forks are not allowed to execute on the
+corporate-network runner. Pushes, manually dispatched builds, and pull requests
+whose source branch is in this repository remain supported.
+
+The image installs `ros2`, `rtabmap-ros`, `simaai-rtabmap`, and
+`vdp-navigation`, together with the Debian `colcon` and `vcstool` packages
+needed for source workspaces. The ROS 2 and RTAB-Map ROS bundles are pinned to
+the private custom mirror; supporting SiMa packages continue to prefer the
+regular SiMa release repository.
+
+The custom mirror signing key is not currently distributed with the base SDK.
+Until it is available, trust is scoped to this one APT source with
+`[trusted=yes]`. Replace that setting with a dedicated `signed-by` keyring as
+soon as the repository public key is published.
+
 ## Buildx cache
 
 CI builds and publishes images directly with Docker Buildx. Branch builds
