@@ -1,0 +1,156 @@
+name: Build ARM64 ROS 2 SDK image
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Modalix image (ARM64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Resolve package and image tags
+        id: image
+        shell: bash
+        env:
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          set -euo pipefail
+
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          canonical_package="ros2-sdk"
+          package="${canonical_package}"
+
+          if [[ "${GITHUB_REF}" == refs/heads/main ]]; then
+            tags=("latest" "main" "sha-${GITHUB_SHA}")
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            tags=("${GITHUB_REF_NAME}" "sha-${GITHUB_SHA}")
+          else
+            branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+            branch_slug="$(echo "${branch}" | tr '[:upper:]' '[:lower:]')"
+            branch_slug="$(echo "${branch_slug}" | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g')"
+            if [[ -z "${branch_slug}" ]]; then
+              branch_slug="branch"
+            fi
+            package="${canonical_package}-${branch_slug}"
+            tags=("latest" "sha-${GITHUB_SHA}")
+          fi
+
+          image="ghcr.io/${owner}/${package}"
+          {
+            echo "name=${image}"
+            echo "tags<<EOF"
+            printf '%s\n' "${tags[@]/#/${image}:}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+          cache_ref_name="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            # Fork PRs consume only the trusted main cache. Same-repository PRs
+            # may also consume the cache previously written by their source
+            # branch, while remaining read-only during the build.
+            cache_ref_name="main"
+            if [[ "${PR_HEAD_REPOSITORY:-}" == "${GITHUB_REPOSITORY}" &&
+                  -n "${GITHUB_HEAD_REF:-}" ]]; then
+              cache_ref_name="${GITHUB_HEAD_REF}"
+            fi
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]] &&
+               [[ "${GITHUB_REF_NAME}" =~ ^v([0-9]+)[.]([0-9]+)[.] ]]; then
+            cache_ref_name="release-${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
+          fi
+
+          cache_scope="$(echo "${cache_ref_name}" | tr '[:upper:]' '[:lower:]')"
+          cache_scope="$(echo "${cache_scope}" | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g')"
+          if [[ -z "${cache_scope}" ]]; then
+            cache_scope="branch"
+          fi
+
+          cache_ref="ghcr.io/${owner}/ros2-sdk-buildcache:${cache_scope}-aarch64"
+          base_cache_ref="ghcr.io/${owner}/ros2-sdk-buildcache:main-aarch64"
+          echo "cache_ref=${cache_ref}" >> "${GITHUB_OUTPUT}"
+          if [[ "${cache_ref}" == "${base_cache_ref}" ]]; then
+            echo "cache_from=${cache_ref}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "cache_from=${cache_ref} ${base_cache_ref}" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and optionally publish ARM64 image
+        shell: bash
+        env:
+          IMAGE_TAGS: ${{ steps.image.outputs.tags }}
+          CACHE_REF: ${{ steps.image.outputs.cache_ref }}
+          CACHE_FROM: ${{ steps.image.outputs.cache_from }}
+        run: |
+          set -euo pipefail
+
+          build_args=(
+            --file Dockerfile.modalix
+            --platform linux/arm64
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}"
+            --provenance=false
+          )
+
+          read -r -a cache_from_refs <<< "${CACHE_FROM}"
+          for cache_from_ref in "${cache_from_refs[@]}"; do
+            build_args+=(--cache-from "type=registry,ref=${cache_from_ref}")
+          done
+
+          while IFS= read -r tag; do
+            [[ -n "${tag}" ]] && build_args+=(--tag "${tag}")
+          done <<< "${IMAGE_TAGS}"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            build_args+=(--output type=cacheonly)
+          else
+            build_args+=(--push)
+            if [[ "${GITHUB_REF_TYPE}" == "branch" ]]; then
+              build_args+=(
+                --cache-to
+                "type=registry,ref=${CACHE_REF},mode=max,oci-mediatypes=true,image-manifest=true"
+              )
+            fi
+          fi
+
+          docker buildx build "${build_args[@]}" .
+
+      - name: Publish image reference summary
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.name }}
+          IMAGE_TAGS: ${{ steps.image.outputs.tags }}
+        run: |
+          {
+            echo "### ARM64 image"
+            echo
+            echo "Package: \`${IMAGE_NAME}\`"
+            echo
+            echo '```text'
+            printf '%s\n' "${IMAGE_TAGS}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"

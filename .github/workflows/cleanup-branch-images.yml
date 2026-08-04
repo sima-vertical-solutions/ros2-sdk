@@ -1,0 +1,262 @@
+name: Cleanup deleted branch images
+
+on:
+  delete:
+  schedule:
+    - cron: "23 9 * * *"
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: Optional deleted branch to clean up directly
+        required: false
+        default: ""
+        type: string
+      dry_run:
+        description: Report packages without deleting them
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Remove orphaned branch packages
+    if: >-
+      github.event_name != 'delete' ||
+      github.event.ref_type == 'branch'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete GHCR packages for removed branches
+        uses: actions/github-script@v8
+        env:
+          DELETED_BRANCH: ${{ github.event_name == 'delete' && github.event.ref || '' }}
+          REQUESTED_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch_name || '' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repository = context.repo.repo;
+            const repositoryFullName = `${owner}/${repository}`;
+            const canonicalPackage = 'ros2-sdk';
+            const packagePrefix = `${canonicalPackage}-`;
+            const cachePackage = `${canonicalPackage}-buildcache`;
+            const deletedBranch = String(process.env.DELETED_BRANCH || '').trim();
+            const requestedBranch = String(process.env.REQUESTED_BRANCH || '').trim();
+            const dryRun = String(process.env.DRY_RUN).toLowerCase() === 'true';
+
+            function branchSlug(branchName) {
+              const slug = branchName
+                .toLowerCase()
+                .replace(/[^a-z0-9._-]+/g, '-')
+                .replace(/^-+/, '')
+                .replace(/-+$/, '')
+                .replace(/-{2,}/g, '-');
+              return slug || 'branch';
+            }
+
+            function branchPackage(branchName) {
+              return `${canonicalPackage}-${branchSlug(branchName)}`;
+            }
+
+            function cacheScope(tag) {
+              const match = tag.match(/^(.*)-aarch64$/);
+              return match ? match[1] : '';
+            }
+
+            function isProtectedCacheScope(scope) {
+              return scope === 'main' || /^release-[0-9]+[.][0-9]+$/.test(scope);
+            }
+
+            function packageRepositoryFullName(pkg) {
+              if (pkg.repository?.full_name) {
+                return pkg.repository.full_name;
+              }
+              const repoOwner = pkg.repository?.owner?.login;
+              return repoOwner && pkg.repository?.name
+                ? `${repoOwner}/${pkg.repository.name}`
+                : '';
+            }
+
+            async function getPackage(packageName) {
+              try {
+                const response = await github.request(
+                  'GET /orgs/{org}/packages/{package_type}/{package_name}',
+                  {
+                    org: owner,
+                    package_type: 'container',
+                    package_name: packageName,
+                  },
+                );
+                return response.data;
+              } catch (error) {
+                if (error.status === 404) {
+                  return null;
+                }
+                throw error;
+              }
+            }
+
+            async function deletePackage(packageName) {
+              if (!packageName.startsWith(packagePrefix)) {
+                core.warning(`Refusing to delete unexpected package ${packageName}.`);
+                return;
+              }
+
+              const pkg = await getPackage(packageName);
+              if (!pkg) {
+                core.info(`${packageName}: package does not exist; nothing to delete.`);
+                return;
+              }
+
+              const packageRepository = packageRepositoryFullName(pkg);
+              if (packageRepository !== repositoryFullName) {
+                core.warning(
+                  `${packageName}: refusing deletion because it belongs to ` +
+                  `${packageRepository || 'an unknown repository'}, not ${repositoryFullName}.`,
+                );
+                return;
+              }
+
+              if (dryRun) {
+                core.info(`[dry-run] would delete ${packageName}.`);
+                return;
+              }
+
+              await github.request(
+                'DELETE /orgs/{org}/packages/{package_type}/{package_name}',
+                {
+                  org: owner,
+                  package_type: 'container',
+                  package_name: packageName,
+                },
+              );
+              core.info(`Deleted ${packageName}.`);
+            }
+
+            async function deletePackageVersion(packageName, version) {
+              const tags = version.metadata?.container?.tags ?? [];
+              if (dryRun) {
+                core.info(
+                  `[dry-run] would delete ${packageName} version ${version.id} ` +
+                  `tags=[${tags.join(', ')}].`,
+                );
+                return;
+              }
+
+              await github.request(
+                'DELETE /orgs/{org}/packages/{package_type}/{package_name}/versions/{package_version_id}',
+                {
+                  org: owner,
+                  package_type: 'container',
+                  package_name: packageName,
+                  package_version_id: version.id,
+                },
+              );
+              core.info(`Deleted ${packageName} version ${version.id}.`);
+            }
+
+            const branches = await github.paginate(
+              'GET /repos/{owner}/{repo}/branches',
+              { owner, repo: repository, per_page: 100 },
+            );
+            const livePackages = new Set(branches.map((branch) => branchPackage(branch.name)));
+            const liveBranchSlugs = new Set(branches.map((branch) => branchSlug(branch.name)));
+            livePackages.add(canonicalPackage);
+
+            const directBranch = deletedBranch || requestedBranch;
+            if (directBranch) {
+              const packageName = branchPackage(directBranch);
+              if (packageName === cachePackage) {
+                core.warning(`${directBranch}: branch name collides with reserved cache package.`);
+              } else if (livePackages.has(packageName)) {
+                core.info(`${directBranch}: branch still exists; keeping ${packageName}.`);
+              } else {
+                await deletePackage(packageName);
+              }
+            }
+
+            if (context.eventName === 'schedule') {
+              const packages = await github.paginate(
+                'GET /orgs/{org}/packages',
+                { org: owner, package_type: 'container', per_page: 100 },
+              );
+
+              for (const pkg of packages) {
+                if (
+                  pkg.name === cachePackage ||
+                  !pkg.name.startsWith(packagePrefix) ||
+                  livePackages.has(pkg.name)
+                ) {
+                  continue;
+                }
+                await deletePackage(pkg.name);
+              }
+            }
+
+            const cache = await getPackage(cachePackage);
+            if (!cache) {
+              core.info(`${cachePackage}: package does not exist; skipping cache cleanup.`);
+            } else if (packageRepositoryFullName(cache) !== repositoryFullName) {
+              core.warning(
+                `${cachePackage}: refusing cleanup because it belongs to ` +
+                `${packageRepositoryFullName(cache) || 'an unknown repository'}.`,
+              );
+            } else {
+              const versions = await github.paginate(
+                'GET /orgs/{org}/packages/{package_type}/{package_name}/versions',
+                {
+                  org: owner,
+                  package_type: 'container',
+                  package_name: cachePackage,
+                  per_page: 100,
+                },
+              );
+              const directScope = directBranch ? branchSlug(directBranch) : '';
+              const untaggedCutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
+
+              for (const version of versions) {
+                const tags = version.metadata?.container?.tags ?? [];
+                if (tags.length === 0) {
+                  if (context.eventName !== 'schedule') {
+                    continue;
+                  }
+                  const updatedAt = Date.parse(version.updated_at || version.created_at || '');
+                  if (Number.isFinite(updatedAt) && updatedAt < untaggedCutoff) {
+                    await deletePackageVersion(cachePackage, version);
+                  }
+                  continue;
+                }
+
+                const removableTags = tags.filter((tag) => {
+                  const scope = cacheScope(tag);
+                  if (!scope || isProtectedCacheScope(scope)) {
+                    return false;
+                  }
+                  if (directScope) {
+                    return scope === directScope && !liveBranchSlugs.has(scope);
+                  }
+                  return context.eventName === 'schedule' && !liveBranchSlugs.has(scope);
+                });
+
+                if (removableTags.length === 0) {
+                  continue;
+                }
+                const retainedTags = tags.filter((tag) => !removableTags.includes(tag));
+                if (retainedTags.length > 0) {
+                  core.warning(
+                    `${cachePackage}: version ${version.id} mixes removable tags ` +
+                    `[${removableTags.join(', ')}] with retained tags ` +
+                    `[${retainedTags.join(', ')}]; keeping the version.`,
+                  );
+                  continue;
+                }
+                await deletePackageVersion(cachePackage, version);
+              }
+            }
