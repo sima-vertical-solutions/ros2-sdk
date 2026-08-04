@@ -19,10 +19,12 @@ readonly -a ros_packages=(
     rtabmap-ros
 )
 
-# Debian bookworm provides colcon as separate component packages rather than
-# the Ubuntu-only python3-colcon-common-extensions metapackage used by some ROS
-# documentation. vcstool is likewise the Debian package name.
+# Debian bookworm provides the colcon CLI and its extensions as separate
+# packages rather than the Ubuntu-only python3-colcon-common-extensions
+# metapackage used by some ROS documentation. vcstool is likewise the Debian
+# package name.
 readonly -a workspace_tools=(
+    colcon
     python3-colcon-argcomplete
     python3-colcon-cmake
     python3-colcon-core
