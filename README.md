@@ -36,6 +36,20 @@ ghcr.io/sima-vertical-solutions/ros2-sdk-feature-add-navigation:sha-<commit>
 Version tags beginning with `v` publish matching tags on the canonical package.
 Pull requests build the image without publishing it.
 
+## Buildx cache
+
+CI builds and publishes images directly with Docker Buildx. Branch builds
+import both their own GHCR registry cache and the `main` fallback cache, then
+update only their branch cache. Same-repository pull requests import their
+source branch cache plus `main`, but cannot update either cache. Version tags
+reuse a matching `release-X.Y` cache when available and otherwise fall back to
+`main`.
+
+Build caches are stored in the internal
+`ghcr.io/sima-vertical-solutions/ros2-sdk-buildcache` package and are not
+runnable SDK images. Cleanup removes cache versions for deleted branches and
+untagged cache versions older than seven days.
+
 All published images target `linux/arm64` only. Pull one explicitly with:
 
 ```bash
