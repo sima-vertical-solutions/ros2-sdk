@@ -96,12 +96,16 @@ apt-get install -y --no-install-recommends \
 
 # Use local_setup.bash for the prebuilt overlays. The full RTAB-Map setup file
 # contains paths from its original build environment in the current release.
+# Colcon's generated setup scripts probe COLCON_CURRENT_PREFIX before defining
+# it, so temporarily disable nounset while sourcing the vendor environment.
+set +u
 # shellcheck disable=SC1091
 source /usr/local/ros2/local_setup.bash
 # shellcheck disable=SC1091
 source /usr/local/rosbot_navigation/local_setup.bash
 # shellcheck disable=SC1091
 source /usr/local/rtabmap-ros/local_setup.bash
+set -u
 
 command -v ros2
 command -v colcon
