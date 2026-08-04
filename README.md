@@ -4,6 +4,17 @@ This repository builds the Modalix 2.1.2 SDK container from
 [`Dockerfile.modalix`](https://github.com/SiMa-ai/swsoc-simaai-elxr-doc/blob/master/Dockerfile.modalix)
 and publishes ARM64-only images to GitHub Container Registry.
 
+## Temporary solution for the 2.1.* release line
+
+This repository is a temporary solution for the 2.1.* SDK release line. The
+current SiMa Neat SDK is based on Ubuntu 24.04 and cannot be used to build the
+ROS 2-related packages required for this target, so this repository provides a
+separate Debian-based SDK container for those builds.
+
+The long-term plan is to move the SiMa Neat SDK to a Debian 13 base and
+consolidate ROS 2 and Neat development into a single SDK. Once that transition
+is complete, this separate ROS 2 SDK should no longer be necessary.
+
 ## Images
 
 The `main` branch publishes the canonical image:
