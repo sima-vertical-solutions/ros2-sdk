@@ -84,6 +84,24 @@ jobs:
                 : '';
             }
 
+            function verifyPackageOwnership(packageName, pkg) {
+              const packageRepository = packageRepositoryFullName(pkg);
+              if (packageRepository && packageRepository !== repositoryFullName) {
+                throw new Error(
+                  `${packageName}: refusing deletion because it belongs to ` +
+                  `${packageRepository}, not ${repositoryFullName}.`,
+                );
+              }
+
+              if (!packageRepository) {
+                core.warning(
+                  `${packageName}: GitHub did not expose repository ownership to ` +
+                  `GITHUB_TOKEN; continuing because the package is in the reserved ` +
+                  `${canonicalPackage} namespace.`,
+                );
+              }
+            }
+
             async function getPackage(packageName) {
               try {
                 const response = await github.request(
@@ -115,14 +133,7 @@ jobs:
                 return;
               }
 
-              const packageRepository = packageRepositoryFullName(pkg);
-              if (packageRepository !== repositoryFullName) {
-                core.warning(
-                  `${packageName}: refusing deletion because it belongs to ` +
-                  `${packageRepository || 'an unknown repository'}, not ${repositoryFullName}.`,
-                );
-                return;
-              }
+              verifyPackageOwnership(packageName, pkg);
 
               if (dryRun) {
                 core.info(`[dry-run] would delete ${packageName}.`);
@@ -203,12 +214,8 @@ jobs:
             const cache = await getPackage(cachePackage);
             if (!cache) {
               core.info(`${cachePackage}: package does not exist; skipping cache cleanup.`);
-            } else if (packageRepositoryFullName(cache) !== repositoryFullName) {
-              core.warning(
-                `${cachePackage}: refusing cleanup because it belongs to ` +
-                `${packageRepositoryFullName(cache) || 'an unknown repository'}.`,
-              );
             } else {
+              verifyPackageOwnership(cachePackage, cache);
               const versions = await github.paginate(
                 'GET /orgs/{org}/packages/{package_type}/{package_name}/versions',
                 {
