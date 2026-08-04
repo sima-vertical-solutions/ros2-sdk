@@ -1,0 +1,162 @@
+name: Cleanup deleted branch images
+
+on:
+  delete:
+  schedule:
+    - cron: "23 9 * * *"
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: Optional deleted branch to clean up directly
+        required: false
+        default: ""
+        type: string
+      dry_run:
+        description: Report packages without deleting them
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Remove orphaned branch packages
+    if: >-
+      github.event_name != 'delete' ||
+      github.event.ref_type == 'branch'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Delete GHCR packages for removed branches
+        uses: actions/github-script@v8
+        env:
+          DELETED_BRANCH: ${{ github.event_name == 'delete' && github.event.ref || '' }}
+          REQUESTED_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch_name || '' }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repository = context.repo.repo;
+            const repositoryFullName = `${owner}/${repository}`;
+            const canonicalPackage = 'ros2-sdk';
+            const packagePrefix = `${canonicalPackage}-`;
+            const deletedBranch = String(process.env.DELETED_BRANCH || '').trim();
+            const requestedBranch = String(process.env.REQUESTED_BRANCH || '').trim();
+            const dryRun = String(process.env.DRY_RUN).toLowerCase() === 'true';
+
+            function branchSlug(branchName) {
+              const slug = branchName
+                .toLowerCase()
+                .replace(/[^a-z0-9._-]+/g, '-')
+                .replace(/^-+/, '')
+                .replace(/-+$/, '')
+                .replace(/-{2,}/g, '-');
+              return slug || 'branch';
+            }
+
+            function branchPackage(branchName) {
+              return `${canonicalPackage}-${branchSlug(branchName)}`;
+            }
+
+            function packageRepositoryFullName(pkg) {
+              if (pkg.repository?.full_name) {
+                return pkg.repository.full_name;
+              }
+              const repoOwner = pkg.repository?.owner?.login;
+              return repoOwner && pkg.repository?.name
+                ? `${repoOwner}/${pkg.repository.name}`
+                : '';
+            }
+
+            async function getPackage(packageName) {
+              try {
+                const response = await github.request(
+                  'GET /orgs/{org}/packages/{package_type}/{package_name}',
+                  {
+                    org: owner,
+                    package_type: 'container',
+                    package_name: packageName,
+                  },
+                );
+                return response.data;
+              } catch (error) {
+                if (error.status === 404) {
+                  return null;
+                }
+                throw error;
+              }
+            }
+
+            async function deletePackage(packageName) {
+              if (!packageName.startsWith(packagePrefix)) {
+                core.warning(`Refusing to delete unexpected package ${packageName}.`);
+                return;
+              }
+
+              const pkg = await getPackage(packageName);
+              if (!pkg) {
+                core.info(`${packageName}: package does not exist; nothing to delete.`);
+                return;
+              }
+
+              const packageRepository = packageRepositoryFullName(pkg);
+              if (packageRepository !== repositoryFullName) {
+                core.warning(
+                  `${packageName}: refusing deletion because it belongs to ` +
+                  `${packageRepository || 'an unknown repository'}, not ${repositoryFullName}.`,
+                );
+                return;
+              }
+
+              if (dryRun) {
+                core.info(`[dry-run] would delete ${packageName}.`);
+                return;
+              }
+
+              await github.request(
+                'DELETE /orgs/{org}/packages/{package_type}/{package_name}',
+                {
+                  org: owner,
+                  package_type: 'container',
+                  package_name: packageName,
+                },
+              );
+              core.info(`Deleted ${packageName}.`);
+            }
+
+            const branches = await github.paginate(
+              'GET /repos/{owner}/{repo}/branches',
+              { owner, repo: repository, per_page: 100 },
+            );
+            const livePackages = new Set(branches.map((branch) => branchPackage(branch.name)));
+            livePackages.add(canonicalPackage);
+
+            const directBranch = deletedBranch || requestedBranch;
+            if (directBranch) {
+              const packageName = branchPackage(directBranch);
+              if (livePackages.has(packageName)) {
+                core.info(`${directBranch}: branch still exists; keeping ${packageName}.`);
+              } else {
+                await deletePackage(packageName);
+              }
+            }
+
+            if (context.eventName === 'schedule') {
+              const packages = await github.paginate(
+                'GET /orgs/{org}/packages',
+                { org: owner, package_type: 'container', per_page: 100 },
+              );
+
+              for (const pkg of packages) {
+                if (!pkg.name.startsWith(packagePrefix) || livePackages.has(pkg.name)) {
+                  continue;
+                }
+                await deletePackage(pkg.name);
+              }
+            }

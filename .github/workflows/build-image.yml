@@ -1,0 +1,113 @@
+name: Build ARM64 ROS 2 SDK image
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Modalix image (ARM64)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Resolve package and image tags
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          canonical_package="ros2-sdk"
+          package="${canonical_package}"
+
+          if [[ "${GITHUB_REF}" == refs/heads/main ]]; then
+            tags=("latest" "main" "sha-${GITHUB_SHA}")
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            tags=("${GITHUB_REF_NAME}" "sha-${GITHUB_SHA}")
+          else
+            branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+            branch_slug="$(echo "${branch}" | tr '[:upper:]' '[:lower:]')"
+            branch_slug="$(echo "${branch_slug}" | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+//; s/-+$//; s/-{2,}/-/g')"
+            if [[ -z "${branch_slug}" ]]; then
+              branch_slug="branch"
+            fi
+            package="${canonical_package}-${branch_slug}"
+            tags=("latest" "sha-${GITHUB_SHA}")
+          fi
+
+          image="ghcr.io/${owner}/${package}"
+          {
+            echo "name=${image}"
+            echo "tags<<EOF"
+            printf '%s\n' "${tags[@]/#/${image}:}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and optionally publish ARM64 image
+        shell: bash
+        env:
+          IMAGE_TAGS: ${{ steps.image.outputs.tags }}
+        run: |
+          set -euo pipefail
+
+          build_args=(
+            --file Dockerfile.modalix
+            --platform linux/arm64
+            --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}"
+            --cache-from type=gha
+            --cache-to type=gha,mode=max
+          )
+
+          while IFS= read -r tag; do
+            [[ -n "${tag}" ]] && build_args+=(--tag "${tag}")
+          done <<< "${IMAGE_TAGS}"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            build_args+=(--output type=cacheonly)
+          else
+            build_args+=(--push)
+          fi
+
+          docker buildx build "${build_args[@]}" .
+
+      - name: Publish image reference summary
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.name }}
+          IMAGE_TAGS: ${{ steps.image.outputs.tags }}
+        run: |
+          {
+            echo "### ARM64 image"
+            echo
+            echo "Package: \`${IMAGE_NAME}\`"
+            echo
+            echo '```text'
+            printf '%s\n' "${IMAGE_TAGS}"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
