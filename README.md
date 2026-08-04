@@ -36,28 +36,22 @@ ghcr.io/sima-vertical-solutions/ros2-sdk-feature-add-navigation:sha-<commit>
 Version tags beginning with `v` publish matching tags on the canonical package.
 Pull requests build the image without publishing it.
 
-## Private ARM64 runner and ROS 2 packages
+## ROS 2 packages
 
-Image builds run on an organization-managed, native ARM64 macOS runner with
-the standard `self-hosted`, `macOS`, and `ARM64` labels. The runner must have
-Docker available and an active corporate-network connection that can reach
-`sw-web.eng.sima.ai`. CI checks both conditions before checking out or building
-repository code.
-
-For security, pull requests from forks are not allowed to execute on the
-corporate-network runner. Pushes, manually dispatched builds, and pull requests
-whose source branch is in this repository remain supported.
+Image builds run on GitHub's native `ubuntu-24.04-arm` runner. They do not need
+access to the SiMa corporate network or `sw-web.eng.sima.ai`.
 
 The image installs `ros2`, `rtabmap-ros`, `simaai-rtabmap`, and
-`vdp-navigation`, together with the Debian `colcon` and `vcstool` packages
-needed for source workspaces. The ROS 2 and RTAB-Map ROS bundles are pinned to
-the private custom mirror; supporting SiMa packages continue to prefer the
-regular SiMa release repository.
+`vdp-navigation` from the signed SiMa release repository at
+`https://repo.sima.ai/elxr/deb/release`. It also installs the Debian `colcon`
+components, `vcstool`, and ROS 2 workspace build dependencies described by the
+[ROS 2 setup documentation](https://sima-ai.atlassian.net/wiki/spaces/STMS/pages/3902799894/Setup+ROS2+in+eLxr+on+the+Board).
 
-The custom mirror signing key is not currently distributed with the base SDK.
-Until it is available, trust is scoped to this one APT source with
-`[trusted=yes]`. Replace that setting with a dedicated `signed-by` keyring as
-soon as the repository public key is published.
+[`scripts/install-ros2.sh`](scripts/install-ros2.sh) contains the installation
+and smoke-test procedure invoked by the Docker build. The script verifies that
+all four SiMa ROS packages are available from the release repository before it
+installs them. The internal `/deb/custom` mirror is intentionally excluded; it
+is only required for custom/develop package builds.
 
 ## Buildx cache
 

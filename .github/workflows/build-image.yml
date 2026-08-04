@@ -20,29 +20,8 @@ concurrency:
 jobs:
   build:
     name: Build Modalix image (ARM64)
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 120
+    runs-on: ubuntu-24.04-arm
     steps:
-      - name: Verify ARM64 runner and private mirror access
-        shell: bash
-        env:
-          MIRROR_RELEASE_URL: >-
-            http://sw-web.eng.sima.ai/deb/custom/dists/bookworm/Release
-        run: |
-          set -euo pipefail
-
-          test "$(uname -m)" = "arm64"
-          docker version
-          curl --fail --silent --show-error \
-            --retry 3 \
-            --retry-all-errors \
-            --connect-timeout 10 \
-            --output /dev/null \
-            "${MIRROR_RELEASE_URL}"
-
       - name: Check out repository
         uses: actions/checkout@v5
 

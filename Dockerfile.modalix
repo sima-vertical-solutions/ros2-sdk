@@ -21,10 +21,11 @@ RUN wget -qO - https://packages.fluentbit.io/fluentbit.key | gpg --dearmor > /et
 RUN wget --no-check-certificate -O - https://repo.sima.ai/elxr/deb/simaai.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/simaai.gpg
 RUN chmod 644 /etc/apt/trusted.gpg.d/elxr.gpg
 RUN chmod 644 /etc/apt/trusted.gpg.d/fluentbit.gpg
+RUN chmod 644 /etc/apt/trusted.gpg.d/simaai.gpg
 
 RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/elxr.gpg] https://mirror.elxr.dev/elxr aria main" > /etc/apt/sources.list.d/elxr.list
 RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/fluentbit.gpg] https://packages.fluentbit.io/debian/bookworm bookworm main" >> /etc/apt/sources.list.d/elxr.list
-RUN echo "deb [trusted=yes] https://repo.sima.ai/elxr/deb/release bookworm non-free  #simaai repo" >> /etc/apt/sources.list.d/elxr.list
+RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/simaai.gpg] https://repo.sima.ai/elxr/deb/release bookworm non-free" >> /etc/apt/sources.list.d/elxr.list
 
 RUN apt-get update --allow-releaseinfo-change && \
     apt-get install -y --no-install-recommends \
@@ -55,40 +56,8 @@ RUN echo "Package: *" > /etc/apt/preferences.d/stable.pref
 RUN echo "Pin: origin \"repo.sima.ai/elxr\"" >> /etc/apt/preferences.d/stable.pref
 RUN echo "Pin-Priority: 999" >> /etc/apt/preferences.d/stable.pref
 
-# The custom mirror is reachable only from the corporate network. Its signing
-# key is not currently distributed with the SDK, so trust is scoped to this
-# source rather than disabling APT verification globally.
-ARG SIMA_CUSTOM_APT_MIRROR=http://sw-web.eng.sima.ai/deb/custom
-RUN echo "deb [trusted=yes] ${SIMA_CUSTOM_APT_MIRROR} bookworm non-free" \
-    > /etc/apt/sources.list.d/0000mirror.list
-
-# Prefer the private mirror for the ROS 2 bundles that it owns. Supporting
-# SiMa packages continue to use the higher-priority release repository.
-RUN echo "Package: ros2 rtabmap-ros" \
-    > /etc/apt/preferences.d/ros2-custom.pref && \
-    echo "Pin: origin \"sw-web.eng.sima.ai\"" \
-    >> /etc/apt/preferences.d/ros2-custom.pref && \
-    echo "Pin-Priority: 1001" \
-    >> /etc/apt/preferences.d/ros2-custom.pref
-
-RUN apt-get update --allow-releaseinfo-change && \
-    apt-get install -y --no-install-recommends \
-        ros2 \
-        simaai-rtabmap \
-        vdp-navigation \
-        rtabmap-ros \
-        python3-colcon-argcomplete \
-        python3-colcon-cmake \
-        python3-colcon-core \
-        python3-colcon-output \
-        python3-colcon-package-selection \
-        python3-colcon-parallel-executor \
-        python3-colcon-python-setup-py \
-        python3-colcon-recursive-crawl \
-        python3-colcon-ros \
-        python3-colcon-test-result \
-        vcstool && \
-    rm -rf /var/lib/apt/lists/*
+COPY --chmod=0755 scripts/install-ros2.sh /usr/local/bin/install-ros2
+RUN /usr/local/bin/install-ros2
 
 RUN export RUSTUP_HOME=/opt/toolchain/rust && export CARGO_HOME=/opt/toolchain/rust && \
     mkdir -p ${RUSTUP_HOME} && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && \
@@ -110,15 +79,6 @@ RUN python3 /opt/bin/simaai_setup_sdk.py modalix 2.1.2 \
 	"${SDK_PKG_LIST}"
 
 RUN echo "source /opt/bin/simaai-init-build-env modalix" >> /root/.bashrc
-RUN echo "source /usr/local/ros2/setup.bash" >> /root/.bashrc && \
-    echo "source /usr/local/rosbot_navigation/setup.bash" >> /root/.bashrc && \
+RUN echo "source /usr/local/ros2/local_setup.bash" >> /root/.bashrc && \
+    echo "source /usr/local/rosbot_navigation/local_setup.bash" >> /root/.bashrc && \
     echo "source /usr/local/rtabmap-ros/local_setup.bash" >> /root/.bashrc
-
-RUN bash -c 'set -euo pipefail; \
-    source /usr/local/ros2/setup.bash; \
-    source /usr/local/rosbot_navigation/setup.bash; \
-    source /usr/local/rtabmap-ros/local_setup.bash; \
-    command -v ros2; \
-    command -v colcon; \
-    ros2 pkg prefix nav2_bringup; \
-    ros2 pkg prefix rtabmap_slam'
