@@ -113,3 +113,12 @@ RUN echo "source /opt/bin/simaai-init-build-env modalix" >> /root/.bashrc
 RUN echo "source /usr/local/ros2/setup.bash" >> /root/.bashrc && \
     echo "source /usr/local/rosbot_navigation/setup.bash" >> /root/.bashrc && \
     echo "source /usr/local/rtabmap-ros/local_setup.bash" >> /root/.bashrc
+
+RUN bash -c 'set -euo pipefail; \
+    source /usr/local/ros2/setup.bash; \
+    source /usr/local/rosbot_navigation/setup.bash; \
+    source /usr/local/rtabmap-ros/local_setup.bash; \
+    command -v ros2; \
+    command -v colcon; \
+    ros2 pkg prefix nav2_bringup; \
+    ros2 pkg prefix rtabmap_slam'
