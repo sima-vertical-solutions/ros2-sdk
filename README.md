@@ -53,6 +53,25 @@ all four SiMa ROS packages are available from the release repository before it
 installs them. The internal `/deb/custom` mirror is intentionally excluded; it
 is only required for custom/develop package builds.
 
+## Native ARM64 builds
+
+The ROS 2 SDK compiles applications natively with the container's ARM64 GCC and
+G++. It does not activate the Neat SDK's cross-compilation environment and does
+not pass `--sysroot`. The container and Modalix DevKit both use Debian 12 on
+ARM64, so native compilation also allows ROS 2 to resolve its host-installed
+development dependencies normally.
+
+[`scripts/setup-native-build-env.sh`](scripts/setup-native-build-env.sh) makes
+the prebuilt Neat headers and libraries available as an additional dependency
+prefix without replacing the host compiler or system headers. It is sourced
+automatically for interactive shells. After switching an existing workspace
+from a cross-built image, remove its cached CMake configuration with a clean
+build:
+
+```bash
+./build.sh <package-name> --clean
+```
+
 ## RealSense SDK
 
 The image builds RealSense SDK 2.58.1 from its pinned upstream release archive
@@ -85,6 +104,31 @@ container-oriented equivalent of the published
 [`linux-mac.sh`](https://artifacts.neat.sima.ai/sima-cli/linux-mac.sh)
 installer. It deliberately avoids mutable latest-version resolution and shell
 aliases, and verifies the installed CLI version during the image build.
+
+## GitHub access
+
+Git, OpenSSH client, and GitHub CLI (`gh`) are preinstalled. SSH-form GitHub
+repository URLs such as `git@github.com:owner/repository.git` are rewritten to
+HTTPS, and Git is preconfigured to use the GitHub CLI credential helper. No
+GitHub token or SSH private key is included in the image.
+
+Authenticate once inside a new container before cloning private repositories
+or initializing private submodules:
+
+```bash
+gh auth login --hostname github.com --git-protocol https --web
+```
+
+Private SSH-form submodules can then be initialized without modifying their
+committed `.gitmodules` URLs:
+
+```bash
+git submodule sync --recursive
+git submodule update --init --remote --merge --recursive
+```
+
+Authentication is container-local unless `$HOME/.config/gh` is persisted or
+mounted separately.
 
 ## Buildx cache
 

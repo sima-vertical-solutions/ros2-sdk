@@ -33,8 +33,6 @@ RUN apt-get update --allow-releaseinfo-change && \
 	vim \
 	make \
 	cmake \
-	gcc-aarch64-linux-gnu \
-	g++-aarch64-linux-gnu \
 	device-tree-compiler \
 	bison \
 	flex \
@@ -84,7 +82,15 @@ RUN /usr/local/bin/install-realsense
 COPY --chmod=0755 scripts/install-sima-cli.sh /usr/local/bin/install-sima-cli
 RUN /usr/local/bin/install-sima-cli
 
-RUN echo "source /opt/bin/simaai-init-build-env modalix" >> /root/.bashrc
+COPY --chmod=0755 scripts/install-github-tools.sh /usr/local/bin/install-github-tools
+RUN /usr/local/bin/install-github-tools
+
+COPY --chmod=0755 scripts/setup-native-build-env.sh /usr/local/bin/setup-native-build-env
+RUN bash -c 'source /usr/local/bin/setup-native-build-env && \
+    test "$(gcc -dumpmachine)" = "aarch64-linux-gnu" && \
+    [[ "${CFLAGS}" != *--sysroot* ]]'
+
+RUN echo "source /usr/local/bin/setup-native-build-env" >> /root/.bashrc
 RUN echo "source /usr/local/ros2/local_setup.bash" >> /root/.bashrc && \
     echo "source /usr/local/rosbot_navigation/local_setup.bash" >> /root/.bashrc && \
     echo "source /usr/local/rtabmap-ros/local_setup.bash" >> /root/.bashrc
