@@ -73,6 +73,19 @@ on the DevKit:
 rs-enumerate-devices
 ```
 
+## SiMa CLI
+
+The image includes SiMa CLI 2.1.15 as `/usr/local/bin/sima-cli` for both
+interactive shells and non-interactive automation. The platform-independent
+wheel is pinned and checksum-verified, then installed into an isolated virtual
+environment under `/opt/sima-cli`.
+
+[`scripts/install-sima-cli.sh`](scripts/install-sima-cli.sh) is the
+container-oriented equivalent of the published
+[`linux-mac.sh`](https://artifacts.neat.sima.ai/sima-cli/linux-mac.sh)
+installer. It deliberately avoids mutable latest-version resolution and shell
+aliases, and verifies the installed CLI version during the image build.
+
 ## Buildx cache
 
 CI builds and publishes images directly with Docker Buildx. Branch builds
