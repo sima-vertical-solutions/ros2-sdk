@@ -53,6 +53,26 @@ all four SiMa ROS packages are available from the release repository before it
 installs them. The internal `/deb/custom` mirror is intentionally excluded; it
 is only required for custom/develop package builds.
 
+## RealSense SDK
+
+The image builds RealSense SDK 2.58.1 from its pinned upstream release archive
+and installs the headers, shared libraries, CMake metadata, and command-line
+tools into `/usr/local`. The archive checksum is verified before extraction.
+
+[`scripts/install-realsense.sh`](scripts/install-realsense.sh) implements the
+[STIGA stack bring-up procedure](https://sima-ai.atlassian.net/wiki/spaces/VP/pages/3987898369/STIGA+STACK+BRINGUP+-+VISTA+V1)
+using the RSUSB backend, ARM64 NEON optimizations, and no CUDA, DDS, rosbag2,
+Python bindings, examples, or unit tests. Non-graphical tools remain enabled so
+`rs-enumerate-devices` is available on a USB-connected DevKit.
+
+CI verifies the installed header and shared library and compiles, links, and
+runs a hardware-independent API probe. Actual camera enumeration must be run
+on the DevKit:
+
+```bash
+rs-enumerate-devices
+```
+
 ## Buildx cache
 
 CI builds and publishes images directly with Docker Buildx. Branch builds

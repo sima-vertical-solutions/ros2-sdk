@@ -78,6 +78,9 @@ RUN python3 /opt/bin/simaai_setup_sdk.py modalix 2.1.2 \
 	 \
 	"${SDK_PKG_LIST}"
 
+COPY --chmod=0755 scripts/install-realsense.sh /usr/local/bin/install-realsense
+RUN /usr/local/bin/install-realsense
+
 RUN echo "source /opt/bin/simaai-init-build-env modalix" >> /root/.bashrc
 RUN echo "source /usr/local/ros2/local_setup.bash" >> /root/.bashrc && \
     echo "source /usr/local/rosbot_navigation/local_setup.bash" >> /root/.bashrc && \
