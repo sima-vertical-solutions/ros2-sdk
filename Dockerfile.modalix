@@ -86,11 +86,10 @@ COPY --chmod=0755 scripts/install-github-tools.sh /usr/local/bin/install-github-
 RUN /usr/local/bin/install-github-tools
 
 COPY --chmod=0755 scripts/setup-native-build-env.sh /usr/local/bin/setup-native-build-env
-RUN bash -c 'source /usr/local/bin/setup-native-build-env && \
+COPY --chmod=0644 scripts/setup-shell-env.sh /etc/profile.d/ros2-sdk.sh
+RUN bash -c 'source /etc/profile.d/ros2-sdk.sh && \
     test "$(gcc -dumpmachine)" = "aarch64-linux-gnu" && \
-    [[ "${CFLAGS}" != *--sysroot* ]]'
+    [[ "${CFLAGS}" != *--sysroot* ]] && \
+    [[ ":${CMAKE_PREFIX_PATH}:" == *:/usr/local/ros2/ament_cmake:* ]]'
 
-RUN echo "source /usr/local/bin/setup-native-build-env" >> /root/.bashrc
-RUN echo "source /usr/local/ros2/local_setup.bash" >> /root/.bashrc && \
-    echo "source /usr/local/rosbot_navigation/local_setup.bash" >> /root/.bashrc && \
-    echo "source /usr/local/rtabmap-ros/local_setup.bash" >> /root/.bashrc
+RUN echo "source /etc/profile.d/ros2-sdk.sh" >> /etc/bash.bashrc
