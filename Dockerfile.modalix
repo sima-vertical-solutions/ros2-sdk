@@ -57,6 +57,12 @@ RUN echo "Pin-Priority: 999" >> /etc/apt/preferences.d/stable.pref
 COPY --chmod=0755 scripts/install-ros2.sh /usr/local/bin/install-ros2
 RUN /usr/local/bin/install-ros2
 
+RUN apt-get update --allow-releaseinfo-change && \
+    apt-get install -y --no-install-recommends \
+        nlohmann-json3-dev \
+        libgdal-dev && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN export RUSTUP_HOME=/opt/toolchain/rust && export CARGO_HOME=/opt/toolchain/rust && \
     mkdir -p ${RUSTUP_HOME} && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && \
     chmod 755 /tmp/rustup.sh && /tmp/rustup.sh -y && \
