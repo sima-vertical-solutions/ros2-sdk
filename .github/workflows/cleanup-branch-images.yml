@@ -193,24 +193,6 @@ jobs:
               }
             }
 
-            if (context.eventName === 'schedule') {
-              const packages = await github.paginate(
-                'GET /orgs/{org}/packages',
-                { org: owner, package_type: 'container', per_page: 100 },
-              );
-
-              for (const pkg of packages) {
-                if (
-                  pkg.name === cachePackage ||
-                  !pkg.name.startsWith(packagePrefix) ||
-                  livePackages.has(pkg.name)
-                ) {
-                  continue;
-                }
-                await deletePackage(pkg.name);
-              }
-            }
-
             const cache = await getPackage(cachePackage);
             if (!cache) {
               core.info(`${cachePackage}: package does not exist; skipping cache cleanup.`);
