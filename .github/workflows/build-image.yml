@@ -247,7 +247,6 @@ jobs:
     with:
       aws_region: us-west-2
       environment_name: ${{ vars.VULCAN_ENV || 'production' }}
-      artifact_namespace: ros2-sdk
       artifact_pattern: ros2-sdk-install-stub
       artifact_glob: "**/*"
       min_artifact_count: 2
@@ -260,4 +259,3 @@ jobs:
     with:
       aws_region: us-west-2
       environment_name: ${{ vars.VULCAN_ENV || 'production' }}
-      artifact_namespace: ros2-sdk
