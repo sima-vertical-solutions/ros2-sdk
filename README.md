@@ -36,6 +36,56 @@ ghcr.io/sima-vertical-solutions/ros2-sdk-feature-add-navigation:sha-<commit>
 Version tags beginning with `v` publish matching tags on the canonical package.
 Pull requests build the image without publishing it.
 
+## ROS 2 packages
+
+Image builds run on GitHub's native `ubuntu-24.04-arm` runner. They do not need
+access to the SiMa corporate network or `sw-web.eng.sima.ai`.
+
+The image installs `ros2`, `rtabmap-ros`, `simaai-rtabmap`, and
+`vdp-navigation` from the signed SiMa release repository at
+`https://repo.sima.ai/elxr/deb/release`. It also installs the Debian `colcon`
+components, `vcstool`, and ROS 2 workspace build dependencies described by the
+[ROS 2 setup documentation](https://sima-ai.atlassian.net/wiki/spaces/STMS/pages/3902799894/Setup+ROS2+in+eLxr+on+the+Board).
+
+[`scripts/install-ros2.sh`](scripts/install-ros2.sh) contains the installation
+and smoke-test procedure invoked by the Docker build. The script verifies that
+all four SiMa ROS packages are available from the release repository before it
+installs them. The internal `/deb/custom` mirror is intentionally excluded; it
+is only required for custom/develop package builds.
+
+## RealSense SDK
+
+The image builds RealSense SDK 2.58.1 from its pinned upstream release archive
+and installs the headers, shared libraries, CMake metadata, and command-line
+tools into `/usr/local`. The archive checksum is verified before extraction.
+
+[`scripts/install-realsense.sh`](scripts/install-realsense.sh) implements the
+[STIGA stack bring-up procedure](https://sima-ai.atlassian.net/wiki/spaces/VP/pages/3987898369/STIGA+STACK+BRINGUP+-+VISTA+V1)
+using the RSUSB backend, ARM64 NEON optimizations, and no CUDA, DDS, rosbag2,
+Python bindings, examples, or unit tests. Non-graphical tools remain enabled so
+`rs-enumerate-devices` is available on a USB-connected DevKit.
+
+CI verifies the installed header and shared library and compiles, links, and
+runs a hardware-independent API probe. Actual camera enumeration must be run
+on the DevKit:
+
+```bash
+rs-enumerate-devices
+```
+
+## SiMa CLI
+
+The image includes SiMa CLI 2.1.15 as `/usr/local/bin/sima-cli` for both
+interactive shells and non-interactive automation. The platform-independent
+wheel is pinned and checksum-verified, then installed into an isolated virtual
+environment under `/opt/sima-cli`.
+
+[`scripts/install-sima-cli.sh`](scripts/install-sima-cli.sh) is the
+container-oriented equivalent of the published
+[`linux-mac.sh`](https://artifacts.neat.sima.ai/sima-cli/linux-mac.sh)
+installer. It deliberately avoids mutable latest-version resolution and shell
+aliases, and verifies the installed CLI version during the image build.
+
 ## Buildx cache
 
 CI builds and publishes images directly with Docker Buildx. Branch builds
