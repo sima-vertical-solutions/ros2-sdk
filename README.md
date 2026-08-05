@@ -63,10 +63,11 @@ development dependencies normally.
 
 [`scripts/setup-native-build-env.sh`](scripts/setup-native-build-env.sh) makes
 the prebuilt Neat headers and libraries available as an additional dependency
-prefix without replacing the host compiler or system headers. It is sourced
-automatically for interactive shells. After switching an existing workspace
-from a cross-built image, remove its cached CMake configuration with a clean
-build:
+prefix without replacing the host compiler or system headers.
+[`scripts/setup-shell-env.sh`](scripts/setup-shell-env.sh) also sources the ROS
+2 overlays system-wide for every interactive user, including users dynamically
+created by an SDK launcher. After switching an existing workspace from a
+cross-built image, remove its cached CMake configuration with a clean build:
 
 ```bash
 ./build.sh <package-name> --clean
