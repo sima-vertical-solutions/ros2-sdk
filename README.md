@@ -86,6 +86,31 @@ container-oriented equivalent of the published
 installer. It deliberately avoids mutable latest-version resolution and shell
 aliases, and verifies the installed CLI version during the image build.
 
+## GitHub access
+
+Git, OpenSSH client, and GitHub CLI (`gh`) are preinstalled. SSH-form GitHub
+repository URLs such as `git@github.com:owner/repository.git` are rewritten to
+HTTPS, and Git is preconfigured to use the GitHub CLI credential helper. No
+GitHub token or SSH private key is included in the image.
+
+Authenticate once inside a new container before cloning private repositories
+or initializing private submodules:
+
+```bash
+gh auth login --hostname github.com --git-protocol https --web
+```
+
+Private SSH-form submodules can then be initialized without modifying their
+committed `.gitmodules` URLs:
+
+```bash
+git submodule sync --recursive
+git submodule update --init --remote --merge --recursive
+```
+
+Authentication is container-local unless `$HOME/.config/gh` is persisted or
+mounted separately.
+
 ## Buildx cache
 
 CI builds and publishes images directly with Docker Buildx. Branch builds
