@@ -4,6 +4,30 @@ This repository builds the Modalix 2.1.2 SDK container from
 [`Dockerfile.modalix`](https://github.com/SiMa-ai/swsoc-simaai-elxr-doc/blob/master/Dockerfile.modalix)
 and publishes ARM64-only images to GitHub Container Registry.
 
+## Install the SDK
+
+ROS 2 SDK installation requires `sima-cli` 2.1.16 or newer.
+
+```bash
+sima-cli neat install ros2-sdk
+```
+
+The command downloads the matching GHCR image and guides you through
+`sima-cli sdk setup`. If the package requires authentication, authorize GitHub
+CLI with an account that has access:
+
+```bash
+gh auth login --hostname github.com --git-protocol https --web
+```
+
+Every image records its identity in `/etc/sdk-release`. Tagged builds use the
+tag as the version. Branch builds use `branch:githash:buildtime`:
+
+```text
+Product Name = SiMa.ai ROS2 SDK
+Version = main:0123456789ab:20260805T144500Z
+```
+
 ## Temporary solution for the 2.1.* release line
 
 This repository is a temporary solution for the 2.1.* SDK release line. The
@@ -38,20 +62,17 @@ Pull requests build the image without publishing it.
 
 ## ROS 2 packages
 
-Image builds run on GitHub's native `ubuntu-24.04-arm` runner. They do not need
-access to the SiMa corporate network or `sw-web.eng.sima.ai`.
+Image builds run on GitHub's native `ubuntu-24.04-arm` runner.
 
 The image installs `ros2`, `rtabmap-ros`, `simaai-rtabmap`, and
 `vdp-navigation` from the signed SiMa release repository at
 `https://repo.sima.ai/elxr/deb/release`. It also installs the Debian `colcon`
-components, `vcstool`, and ROS 2 workspace build dependencies described by the
-[ROS 2 setup documentation](https://sima-ai.atlassian.net/wiki/spaces/STMS/pages/3902799894/Setup+ROS2+in+eLxr+on+the+Board).
+components, `vcstool`, and ROS 2 workspace build dependencies.
 
 [`scripts/install-ros2.sh`](scripts/install-ros2.sh) contains the installation
 and smoke-test procedure invoked by the Docker build. The script verifies that
 all four SiMa ROS packages are available from the release repository before it
-installs them. The internal `/deb/custom` mirror is intentionally excluded; it
-is only required for custom/develop package builds.
+installs them.
 
 ## Native ARM64 builds
 
@@ -79,8 +100,7 @@ The image builds RealSense SDK 2.58.1 from its pinned upstream release archive
 and installs the headers, shared libraries, CMake metadata, and command-line
 tools into `/usr/local`. The archive checksum is verified before extraction.
 
-[`scripts/install-realsense.sh`](scripts/install-realsense.sh) implements the
-[STIGA stack bring-up procedure](https://sima-ai.atlassian.net/wiki/spaces/VP/pages/3987898369/STIGA+STACK+BRINGUP+-+VISTA+V1)
+[`scripts/install-realsense.sh`](scripts/install-realsense.sh) builds the SDK
 using the RSUSB backend, ARM64 NEON optimizations, and no CUDA, DDS, rosbag2,
 Python bindings, examples, or unit tests. Non-graphical tools remain enabled so
 `rs-enumerate-devices` is available on a USB-connected DevKit.
@@ -152,7 +172,6 @@ docker pull --platform linux/arm64 \
   ghcr.io/sima-vertical-solutions/ros2-sdk:latest
 ```
 
-When a branch is deleted, its branch-specific GHCR package is deleted. A daily
-reconciliation run removes an orphaned branch package if the delete event was
-missed. Cleanup verifies that a package belongs to this repository before
-deleting it.
+When a branch is deleted, its branch-specific GHCR package is deleted. The
+scheduled cleanup handles stale build-cache versions. Cleanup verifies that a
+package belongs to this repository before deleting it.

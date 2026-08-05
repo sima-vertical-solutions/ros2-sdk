@@ -99,3 +99,18 @@ RUN bash -c 'source /etc/profile.d/ros2-sdk.sh && \
     [[ ":${CMAKE_PREFIX_PATH}:" == *:/usr/local/ros2/ament_cmake:* ]]'
 
 RUN echo "source /etc/profile.d/ros2-sdk.sh" >> /etc/bash.bashrc
+
+ARG SDK_PRODUCT_NAME="SiMa.ai ROS2 SDK"
+ARG SDK_RELEASE_TAG=""
+ARG SDK_GIT_BRANCH="unknown"
+ARG SDK_GIT_HASH="nogit"
+ARG SDK_BUILD_TIME="unknown-time"
+COPY --chmod=0755 scripts/write-sdk-release.sh /usr/local/bin/write-sdk-release
+RUN /usr/local/bin/write-sdk-release \
+        /etc/sdk-release \
+        "${SDK_PRODUCT_NAME}" \
+        "${SDK_RELEASE_TAG}" \
+        "${SDK_GIT_BRANCH}" \
+        "${SDK_GIT_HASH}" \
+        "${SDK_BUILD_TIME}" && \
+    grep -Fxq "Product Name = ${SDK_PRODUCT_NAME}" /etc/sdk-release

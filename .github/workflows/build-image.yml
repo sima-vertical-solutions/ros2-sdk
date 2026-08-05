@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: read
+  actions: write
+  id-token: write
   packages: write
 
 concurrency:
@@ -21,6 +23,8 @@ jobs:
   build:
     name: Build Modalix image (ARM64)
     runs-on: ubuntu-24.04-arm
+    outputs:
+      install_image_resource: ${{ steps.image.outputs.install_image_resource }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -39,11 +43,16 @@ jobs:
           owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           canonical_package="ros2-sdk"
           package="${canonical_package}"
+          source_branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          release_tag=""
+          build_time="$(date -u +%Y%m%dT%H%M%SZ)"
+          extra_tags=()
 
           if [[ "${GITHUB_REF}" == refs/heads/main ]]; then
             tags=("latest" "main" "sha-${GITHUB_SHA}")
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             tags=("${GITHUB_REF_NAME}" "sha-${GITHUB_SHA}")
+            release_tag="${GITHUB_REF_NAME}"
           else
             branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
             branch_slug="$(echo "${branch}" | tr '[:upper:]' '[:lower:]')"
@@ -56,10 +65,28 @@ jobs:
           fi
 
           image="ghcr.io/${owner}/${package}"
+          canonical_image="ghcr.io/${owner}/${canonical_package}"
+          install_tag="sha-${GITHUB_SHA}"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            install_tag="${GITHUB_REF_NAME}"
+          elif [[ "${package}" != "${canonical_package}" ]]; then
+            # sima-cli 2.1.16 identifies the canonical ros2-sdk repository as
+            # a ROS 2 SDK. Keep the isolated branch package for direct testing,
+            # and publish an immutable canonical tag for Vulcan installation.
+            extra_tags+=("${canonical_image}:${install_tag}")
+          fi
           {
             echo "name=${image}"
+            echo "install_image_resource=ghcr:${owner}/${canonical_package}:${install_tag}"
+            echo "source_branch=${source_branch}"
+            echo "release_tag=${release_tag}"
+            echo "git_hash=${GITHUB_SHA:0:12}"
+            echo "build_time=${build_time}"
             echo "tags<<EOF"
             printf '%s\n' "${tags[@]/#/${image}:}"
+            if (( ${#extra_tags[@]} > 0 )); then
+              printf '%s\n' "${extra_tags[@]}"
+            fi
             echo "EOF"
           } >> "${GITHUB_OUTPUT}"
 
@@ -106,12 +133,20 @@ jobs:
           IMAGE_TAGS: ${{ steps.image.outputs.tags }}
           CACHE_REF: ${{ steps.image.outputs.cache_ref }}
           CACHE_FROM: ${{ steps.image.outputs.cache_from }}
+          SDK_GIT_BRANCH: ${{ steps.image.outputs.source_branch }}
+          SDK_GIT_HASH: ${{ steps.image.outputs.git_hash }}
+          SDK_BUILD_TIME: ${{ steps.image.outputs.build_time }}
+          SDK_RELEASE_TAG: ${{ steps.image.outputs.release_tag }}
         run: |
           set -euo pipefail
 
           build_args=(
             --file Dockerfile.modalix
             --platform linux/arm64
+            --build-arg "SDK_GIT_BRANCH=${SDK_GIT_BRANCH}"
+            --build-arg "SDK_GIT_HASH=${SDK_GIT_HASH}"
+            --build-arg "SDK_BUILD_TIME=${SDK_BUILD_TIME}"
+            --build-arg "SDK_RELEASE_TAG=${SDK_RELEASE_TAG}"
             --label "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
             --label "org.opencontainers.image.revision=${GITHUB_SHA}"
             --provenance=false
@@ -154,3 +189,75 @@ jobs:
             printf '%s\n' "${IMAGE_TAGS}"
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
+
+  prepare-vulcan-install-stub:
+    name: Prepare ROS 2 SDK install stub
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Test ROS 2 SDK package helpers
+        run: |
+          tests/test-install-ros2-sdk-stub.sh
+          tests/test-sdk-release.sh
+
+      - name: Install sima-cli
+        run: |
+          set -euo pipefail
+
+          python3 -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install sima-cli
+          SIMA_CLI_CHECK_FOR_UPDATE=0 sima-cli --version
+
+      - name: Prepare ROS 2 SDK install-stub package
+        env:
+          IMAGE_RESOURCE: ${{ needs.build.outputs.install_image_resource }}
+        run: |
+          set -euo pipefail
+
+          package_version="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            package_version="${GITHUB_REF_NAME#v}"
+          fi
+
+          source .venv/bin/activate
+          tools/prepare_vulcan_package.sh \
+            --output-dir dist \
+            --image-resource "${IMAGE_RESOURCE}" \
+            --version "${package_version}" \
+            --release "${GITHUB_SHA}"
+
+      - name: Upload ROS 2 SDK install-stub package
+        uses: actions/upload-artifact@v7
+        with:
+          name: ros2-sdk-install-stub
+          path: dist/
+          if-no-files-found: error
+
+  publish-vulcan-install-stub:
+    name: Publish ROS 2 SDK install stub to Vulcan
+    if: github.event_name != 'pull_request'
+    needs: prepare-vulcan-install-stub
+    uses: sima-neat/.github/.github/workflows/vulcan-publish-artifacts.yml@main
+    with:
+      aws_region: us-west-2
+      environment_name: ${{ vars.VULCAN_ENV || 'production' }}
+      artifact_namespace: ros2-sdk
+      artifact_pattern: ros2-sdk-install-stub
+      artifact_glob: "**/*"
+      min_artifact_count: 2
+
+  mark-vulcan-install-stub-latest:
+    name: Mark ROS 2 SDK install stub as latest
+    if: github.event_name != 'pull_request'
+    needs: publish-vulcan-install-stub
+    uses: sima-neat/.github/.github/workflows/vulcan-update-latest-artifacts.yml@main
+    with:
+      aws_region: us-west-2
+      environment_name: ${{ vars.VULCAN_ENV || 'production' }}
+      artifact_namespace: ros2-sdk
