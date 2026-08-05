@@ -53,6 +53,25 @@ all four SiMa ROS packages are available from the release repository before it
 installs them. The internal `/deb/custom` mirror is intentionally excluded; it
 is only required for custom/develop package builds.
 
+## Native ARM64 builds
+
+The ROS 2 SDK compiles applications natively with the container's ARM64 GCC and
+G++. It does not activate the Neat SDK's cross-compilation environment and does
+not pass `--sysroot`. The container and Modalix DevKit both use Debian 12 on
+ARM64, so native compilation also allows ROS 2 to resolve its host-installed
+development dependencies normally.
+
+[`scripts/setup-native-build-env.sh`](scripts/setup-native-build-env.sh) makes
+the prebuilt Neat headers and libraries available as an additional dependency
+prefix without replacing the host compiler or system headers. It is sourced
+automatically for interactive shells. After switching an existing workspace
+from a cross-built image, remove its cached CMake configuration with a clean
+build:
+
+```bash
+./build.sh <package-name> --clean
+```
+
 ## RealSense SDK
 
 The image builds RealSense SDK 2.58.1 from its pinned upstream release archive
