@@ -243,7 +243,7 @@ jobs:
     name: Publish ROS 2 SDK install stub to Vulcan
     if: github.event_name != 'pull_request'
     needs: prepare-vulcan-install-stub
-    uses: sima-neat/.github/.github/workflows/vulcan-publish-artifacts.yml@main
+    uses: sima-neat/.github/.github/workflows/vulcan-publish-artifacts.yml@agent/vertical-solutions-staging
     with:
       aws_region: us-west-2
       environment_name: ${{ vars.VULCAN_ENV || 'production' }}
@@ -255,7 +255,7 @@ jobs:
     name: Mark ROS 2 SDK install stub as latest
     if: github.event_name != 'pull_request'
     needs: publish-vulcan-install-stub
-    uses: sima-neat/.github/.github/workflows/vulcan-update-latest-artifacts.yml@main
+    uses: sima-neat/.github/.github/workflows/vulcan-update-latest-artifacts.yml@agent/vertical-solutions-staging
     with:
       aws_region: us-west-2
       environment_name: ${{ vars.VULCAN_ENV || 'production' }}
