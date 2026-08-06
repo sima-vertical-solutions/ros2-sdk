@@ -2,6 +2,8 @@
 
 FROM debian:bookworm
 
+ARG BASE_SDK_VERSION=2.1.2
+
 # List of additional packages that are to be deployed in SDK sysroot
 ARG SDK_PKG_LIST
 ENV SDK_PKG_LIST="\
@@ -78,7 +80,7 @@ RUN if uname -a | grep -q '#[0-9]*-Ubuntu'; then \
 RUN if [ "x86_64" = "x86_64" ]; then apt update --allow-releaseinfo-change && apt install \
     arch-test -y; fi
 
-RUN python3 /opt/bin/simaai_setup_sdk.py modalix 2.1.2 \
+RUN python3 /opt/bin/simaai_setup_sdk.py modalix "${BASE_SDK_VERSION}" \
 	 \
 	"${SDK_PKG_LIST}"
 
@@ -105,12 +107,23 @@ ARG SDK_RELEASE_TAG=""
 ARG SDK_GIT_BRANCH="unknown"
 ARG SDK_GIT_HASH="nogit"
 ARG SDK_BUILD_TIME="unknown-time"
+ARG SDK_TYPE="ros2-sdk"
+ARG SDK_PROFILE="native-arm64"
+ARG PLATFORM_CHANNEL="release"
+ARG PLATFORM_REPOSITORY="https://repo.sima.ai/elxr/deb/release"
 COPY --chmod=0755 scripts/write-sdk-release.sh /usr/local/bin/write-sdk-release
-RUN /usr/local/bin/write-sdk-release \
+RUN SDK_TYPE="${SDK_TYPE}" \
+    SDK_PROFILE="${SDK_PROFILE}" \
+    PLATFORM_VERSION="${BASE_SDK_VERSION}" \
+    PLATFORM_CHANNEL="${PLATFORM_CHANNEL}" \
+    PLATFORM_REPOSITORY="${PLATFORM_REPOSITORY}" \
+    /usr/local/bin/write-sdk-release \
         /etc/sdk-release \
         "${SDK_PRODUCT_NAME}" \
         "${SDK_RELEASE_TAG}" \
         "${SDK_GIT_BRANCH}" \
         "${SDK_GIT_HASH}" \
         "${SDK_BUILD_TIME}" && \
-    grep -Fxq "Product Name = ${SDK_PRODUCT_NAME}" /etc/sdk-release
+    grep -Fxq "Product Name = ${SDK_PRODUCT_NAME}" /etc/sdk-release && \
+    grep -Fxq "SDK Type = ${SDK_TYPE}" /etc/sdk-release && \
+    grep -Fxq "Platform Version = ${BASE_SDK_VERSION}" /etc/sdk-release

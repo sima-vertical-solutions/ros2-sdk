@@ -20,11 +20,23 @@ CLI with an account that has access:
 gh auth login --hostname github.com --git-protocol https --web
 ```
 
-Every image records its identity in `/etc/sdk-release`. Tagged builds use the
-tag as the version. Branch builds use `branch:githash:buildtime`:
+Every image records its identity and underlying platform in
+`/etc/sdk-release`. `SDK Type = ros2-sdk` is the machine-readable discriminator
+for this native ROS 2 environment; it must not be treated as the Neat
+cross-compilation SDK. Tagged builds use the tag as the image version. Branch
+builds use `branch:githash:buildtime`:
 
 ```text
 Product Name = SiMa.ai ROS2 SDK
+SDK Type = ros2-sdk
+SDK Release = main
+SDK Profile = native-arm64
+Platform Version = 2.1.2
+Platform Base = 2.1.2
+Platform Channel = release
+Platform Repository = https://repo.sima.ai/elxr/deb/release
+Neat Core = not bundled
+ROS2 SDK Version = main:0123456789ab:20260805T144500Z
 Version = main:0123456789ab:20260805T144500Z
 ```
 
