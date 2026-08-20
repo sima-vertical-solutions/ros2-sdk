@@ -40,6 +40,14 @@ ROS2 SDK Version = main:0123456789ab:20260805T144500Z
 Version = main:0123456789ab:20260805T144500Z
 ```
 
+## Release workflow
+
+Releases are created with the manual `Release` GitHub Actions workflow. Enter a
+version tag such as `v2.1.3`; the workflow validates the tag, checks out `main`,
+creates the tag and a draft prerelease, and pushes the tag to trigger the ARM64
+image build. The resulting official image records the tag in `SDK Release`,
+`ROS2 SDK Version`, and `Version` in `/etc/sdk-release`.
+
 ## Temporary solution for the 2.1.* release line
 
 This repository is a temporary solution for the 2.1.* SDK release line. The
