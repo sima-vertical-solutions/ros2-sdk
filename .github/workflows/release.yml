@@ -47,6 +47,8 @@ jobs:
     uses: sima-neat/.github/.github/workflows/release-engineering.yml@main
     with:
       release_version: ${{ needs.release-version.outputs.version }}
+      project_owner: sima-vertical-solutions
+      project_number: 2
     secrets:
       app_id: ${{ secrets.NEAT_RELEASES_APP_ID }}
       app_private_key: ${{ secrets.NEAT_RELEASES_APP_PRIVATE_KEY }}
