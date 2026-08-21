@@ -21,7 +21,8 @@ trap 'rm -rf "${work_dir}"' EXIT
     cd "${work_dir}"
     SIMA_CLI_CHECK_FOR_UPDATE=0 sima-cli neat install \
         "core@v${NEAT_CORE_VERSION}" \
-        -t minimal
+        -t minimal \
+        -f
 )
 
 for package in sima-neat sima-neat-dev; do
