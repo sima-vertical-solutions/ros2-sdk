@@ -1,6 +1,6 @@
 # ROS 2 SDK for Modalix
 
-This repository builds the Modalix 2.1.2 SDK container from
+This repository builds the Modalix 2.1.3 SDK container from
 [`Dockerfile.modalix`](https://github.com/SiMa-ai/swsoc-simaai-elxr-doc/blob/master/Dockerfile.modalix)
 and publishes ARM64-only images to GitHub Container Registry.
 
@@ -31,11 +31,11 @@ Product Name = SiMa.ai ROS2 SDK
 SDK Type = ros2-sdk
 SDK Release = main
 SDK Profile = native-arm64
-Platform Version = 2.1.2
-Platform Base = 2.1.2
+Platform Version = 2.1.3
+Platform Base = 2.1.3
 Platform Channel = release
 Platform Repository = https://repo.sima.ai/elxr/deb/release
-Neat Core = not bundled
+Neat Core = 0.4.0
 ROS2 SDK Version = main:0123456789ab:20260805T144500Z
 Version = main:0123456789ab:20260805T144500Z
 ```
@@ -102,6 +102,11 @@ not pass `--sysroot`. The container and Modalix DevKit both use Debian 12 on
 ARM64, so native compilation also allows ROS 2 to resolve its host-installed
 development dependencies normally.
 
+The image includes Neat Core 0.4.0. Its `sima-neat` runtime and `sima-neat-dev`
+development packages are installed into the native `/usr` paths, so CMake
+projects can use `find_package(SimaNeat REQUIRED)` without a separate Neat
+installation step.
+
 [`scripts/setup-native-build-env.sh`](scripts/setup-native-build-env.sh) makes
 the prebuilt Neat headers and libraries available as an additional dependency
 prefix without replacing the host compiler or system headers.
@@ -135,7 +140,7 @@ rs-enumerate-devices
 
 ## SiMa CLI
 
-The image includes SiMa CLI 2.1.15 as `/usr/local/bin/sima-cli` for both
+The image includes SiMa CLI 2.1.16 as `/usr/local/bin/sima-cli` for both
 interactive shells and non-interactive automation. The platform-independent
 wheel is pinned and checksum-verified, then installed into an isolated virtual
 environment under `/opt/sima-cli`.
