@@ -9,10 +9,11 @@ git_hash="${5:-nogit}"
 build_time="${6:-unknown-time}"
 sdk_type="${SDK_TYPE:-ros2-sdk}"
 sdk_profile="${SDK_PROFILE:-native-arm64}"
-platform_version="${PLATFORM_VERSION:-2.1.2}"
+platform_version="${PLATFORM_VERSION:-2.1.3}"
 platform_base="${platform_version%%~pre*}"
 platform_channel="${PLATFORM_CHANNEL:-release}"
 platform_repository="${PLATFORM_REPOSITORY:-https://repo.sima.ai/elxr/deb/release}"
+neat_core_version="${NEAT_CORE_VERSION:-0.4.0}"
 
 if [[ -n "${release_tag}" ]]; then
   version="${release_tag}"
@@ -31,7 +32,7 @@ Platform Version = ${platform_version}
 Platform Base = ${platform_base}
 Platform Channel = ${platform_channel}
 Platform Repository = ${platform_repository}
-Neat Core = not bundled
+Neat Core = ${neat_core_version}
 ROS2 SDK Version = ${version}
 Version = ${version}
 EOF

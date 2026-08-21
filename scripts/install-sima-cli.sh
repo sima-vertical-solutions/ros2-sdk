@@ -9,9 +9,9 @@
 
 set -euo pipefail
 
-readonly SIMA_CLI_VERSION="2.1.15"
-readonly SIMA_CLI_SHA256="05286675443613095ed5fdcdae35784e72de9295cee24c9aa6952f567193888a"
-readonly SIMA_CLI_URL="https://files.pythonhosted.org/packages/57/3a/bc60d6648f3d9583e34c21c6a742237351bb9d4d30a0126315b80f79cbf8/sima_cli-${SIMA_CLI_VERSION}-py3-none-any.whl"
+readonly SIMA_CLI_VERSION="2.1.16"
+readonly SIMA_CLI_SHA256="f8db78218599430f132f64ea5ccf9464123e40add58468817a4824e3cc799942"
+readonly SIMA_CLI_URL="https://files.pythonhosted.org/packages/6d/40/e12472a5d046c4eeca7f8397ca7b81f980a6025b098f67870293470bfe78/sima_cli-${SIMA_CLI_VERSION}-py3-none-any.whl"
 readonly SIMA_CLI_ROOT="/opt/sima-cli"
 readonly SIMA_CLI_VENV="${SIMA_CLI_ROOT}/.venv"
 
