@@ -28,13 +28,19 @@ set -euo pipefail
 #   navigation   replaces vdp-navigation, and installs under
 #                /usr/local/navigation rather than /usr/local/rosbot_navigation.
 #
-# ros2 is pinned to a tag. rtabmap_ros and navigation track their branches
-# because neither has a release tag yet -- tag them and pin these too, so an
-# SDK image is reproducible rather than dependent on when it was built.
+# One tag across all three. v2.1.3 marks a SiMa platform release -- it matches
+# the Palette version this SDK targets -- and each repository cuts it on
+# whatever its own mainline happens to be called (main, develop, jazzy). The
+# tag is a pointer, not a package version: the debs underneath carry their own
+# upstream numbers, which is what lets three unrelated version series share one
+# release marker.
+#
+# Pinning to the tag rather than a branch is what makes an SDK image
+# reproducible: a branch ref would build a different image next week.
 readonly -a vulcan_packages=(
     "ros2@v2.1.3"
-    "rtabmap_ros@develop"
-    "navigation@jazzy"
+    "rtabmap_ros@v2.1.3"
+    "navigation@v2.1.3"
 )
 
 readonly SIMA_CLI_INSTALLER="https://artifacts.neat.sima.ai/sima-cli/linux-mac.sh"
