@@ -61,6 +61,7 @@ readonly -a workspace_tools=(
     python3-colcon-recursive-crawl
     python3-colcon-ros
     python3-colcon-test-result
+    python3-colcon-bash
     vcstool
 )
 
