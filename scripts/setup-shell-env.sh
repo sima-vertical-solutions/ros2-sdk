@@ -19,7 +19,7 @@ set +u
 
 for ros2_sdk_setup in \
     /usr/local/ros2/local_setup.bash \
-    /usr/local/rosbot_navigation/local_setup.bash \
+    /usr/local/navigation/local_setup.bash \
     /usr/local/rtabmap-ros/local_setup.bash; do
     if [[ ! -r "${ros2_sdk_setup}" ]]; then
         echo "Missing SDK environment: ${ros2_sdk_setup}" >&2
