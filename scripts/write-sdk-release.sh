@@ -14,6 +14,12 @@ platform_base="${platform_version%%~pre*}"
 platform_channel="${PLATFORM_CHANNEL:-release}"
 platform_repository="${PLATFORM_REPOSITORY:-https://repo.sima.ai/elxr/deb/release}"
 neat_core_version="${NEAT_CORE_VERSION:-0.4.0}"
+# The REF that was installed, as opposed to the version it resolved to. Both are needed and
+# neither can be derived from the other: the version's branch slug is lossy (a "/" becomes "-",
+# so feature-yolox-seg-pose could have been feature/yolox-seg-pose or feature-yolox/seg-pose),
+# and the ref says nothing about what version landed. A rover has to install the same REF the
+# image did, so it has to be recorded here.
+neat_core_spec="${NEAT_CORE_SPEC:-v${neat_core_version}}"
 
 if [[ -n "${release_tag}" ]]; then
   version="${release_tag}"
@@ -33,6 +39,7 @@ Platform Base = ${platform_base}
 Platform Channel = ${platform_channel}
 Platform Repository = ${platform_repository}
 Neat Core = ${neat_core_version}
+Neat Core Spec = ${neat_core_spec}
 ROS2 SDK Version = ${version}
 Version = ${version}
 EOF
