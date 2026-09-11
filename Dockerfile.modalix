@@ -60,11 +60,48 @@ RUN echo "Pin-Priority: 999" >> /etc/apt/preferences.d/stable.pref
 COPY --chmod=0755 scripts/install-ros2.sh /usr/local/bin/install-ros2
 RUN /usr/local/bin/install-ros2
 
+# Build dependencies of the sima application code that compiles against this SDK, as
+# opposed to dependencies of the SDK itself. Application repos (stiga, and any other
+# client) were each installing these at CI time; they belong here so every consumer of
+# the image gets them without repeating the list.
+#
+# liborocos-kdl-dev is the one that is not optional: orocos_kdl_vendor ships INSIDE the
+# ros2 deb and its CMake config does find_package(orocos_kdl), which resolves to this
+# package's /usr/lib/*/cmake/orocos_kdl/orocos_kdl-config.cmake. Without it, every
+# package that pulls in tf2_geometry_msgs fails at configure. Strictly this belongs in
+# the ros2 deb's runtime-depends -- the deb ships a package config it cannot satisfy --
+# but installing it here fixes every consumer today.
+#
+# git-lfs is for application repos whose model archives are LFS objects; nothing in the
+# SDK itself needs it.
+#
+# NOT simaai-socpipeline-dev: it ships /usr/include/configFunctions.h, which is also in
+# neat-internals-dev installed by install-neat-core below. dpkg aborts on the overwrite.
+# The headers it would provide are all present via neat-internals-dev, so it is
+# superseded here rather than missing.
 RUN apt-get update --allow-releaseinfo-change && \
     apt-get install -y --no-install-recommends \
         nlohmann-json3-dev \
-        libgdal-dev && \
+        libgdal-dev \
+        liborocos-kdl-dev \
+        git-lfs \
+        simaai-memory-lib-dev \
+        libjsoncpp-dev \
+        libgstreamer1.0-dev \
+        libgstreamer-plugins-base1.0-dev && \
+    git lfs install --system && \
     rm -rf /var/lib/apt/lists/*
+
+# Build-time python imports of the sima source. --break-system-packages because bookworm
+# marks the system interpreter EXTERNALLY-MANAGED; this image has no venv by design, the
+# ROS 2 install being system-wide already.
+#
+# shapely and pyclipper are deliberately absent: those are application runtime deps that
+# get vendored into an application's own install tree, not built against here.
+RUN pip3 install --break-system-packages --no-cache-dir \
+        pydantic \
+        py_trees \
+        xacro
 
 RUN export RUSTUP_HOME=/opt/toolchain/rust && export CARGO_HOME=/opt/toolchain/rust && \
     mkdir -p ${RUSTUP_HOME} && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && \
