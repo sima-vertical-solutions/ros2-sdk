@@ -3,7 +3,8 @@
 FROM debian:bookworm
 
 ARG BASE_SDK_VERSION=2.1.3
-ARG NEAT_CORE_VERSION=0.4.0
+# TEMPORARY PIN -- revert to a release tag ("v0.4.0") once feature/yolox-seg-pose merges.
+ARG NEAT_CORE_SPEC=feature/yolox-seg-pose:e42536a7a7bd
 
 # List of additional packages that are to be deployed in SDK sysroot
 ARG SDK_PKG_LIST
@@ -133,7 +134,7 @@ RUN /usr/local/bin/install-sima-cli
 RUN printf 'SDK Type = ros2-sdk\nPlatform Version = %s\nPlatform Base = %s\n' \
         "${BASE_SDK_VERSION}" "${BASE_SDK_VERSION}" > /etc/sdk-release
 COPY --chmod=0755 scripts/install-neat-core.sh /usr/local/bin/install-neat-core
-RUN NEAT_CORE_VERSION="${NEAT_CORE_VERSION}" /usr/local/bin/install-neat-core
+RUN NEAT_CORE_SPEC="${NEAT_CORE_SPEC}" /usr/local/bin/install-neat-core
 
 COPY --chmod=0755 scripts/install-github-tools.sh /usr/local/bin/install-github-tools
 RUN /usr/local/bin/install-github-tools
@@ -157,7 +158,12 @@ ARG SDK_PROFILE="native-arm64"
 ARG PLATFORM_CHANNEL="release"
 ARG PLATFORM_REPOSITORY="https://repo.sima.ai/elxr/deb/release"
 COPY --chmod=0755 scripts/write-sdk-release.sh /usr/local/bin/write-sdk-release
-RUN SDK_TYPE="${SDK_TYPE}" \
+# NEAT_CORE_VERSION is read back from dpkg, not passed in: the spec above is a ref, and the
+# version it resolves to is only knowable after the install. Deriving it here means
+# /etc/sdk-release always reports what is actually installed -- which is what gen_release.sh
+# stamps into a release packet and what provision.sh checks the rover against.
+RUN NEAT_CORE_VERSION="$(dpkg-query -W -f='${Version}' sima-neat)" && \
+    SDK_TYPE="${SDK_TYPE}" \
     SDK_PROFILE="${SDK_PROFILE}" \
     PLATFORM_VERSION="${BASE_SDK_VERSION}" \
     NEAT_CORE_VERSION="${NEAT_CORE_VERSION}" \
