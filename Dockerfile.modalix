@@ -167,6 +167,7 @@ RUN NEAT_CORE_VERSION="$(dpkg-query -W -f='${Version}' sima-neat)" && \
     SDK_PROFILE="${SDK_PROFILE}" \
     PLATFORM_VERSION="${BASE_SDK_VERSION}" \
     NEAT_CORE_VERSION="${NEAT_CORE_VERSION}" \
+    NEAT_CORE_SPEC="${NEAT_CORE_SPEC}" \
     PLATFORM_CHANNEL="${PLATFORM_CHANNEL}" \
     PLATFORM_REPOSITORY="${PLATFORM_REPOSITORY}" \
     /usr/local/bin/write-sdk-release \
@@ -179,4 +180,5 @@ RUN NEAT_CORE_VERSION="$(dpkg-query -W -f='${Version}' sima-neat)" && \
     grep -Fxq "Product Name = ${SDK_PRODUCT_NAME}" /etc/sdk-release && \
     grep -Fxq "SDK Type = ${SDK_TYPE}" /etc/sdk-release && \
     grep -Fxq "Platform Version = ${BASE_SDK_VERSION}" /etc/sdk-release && \
-    grep -Fxq "Neat Core = ${NEAT_CORE_VERSION}" /etc/sdk-release
+    grep -Fxq "Neat Core = ${NEAT_CORE_VERSION}" /etc/sdk-release && \
+    grep -Fxq "Neat Core Spec = ${NEAT_CORE_SPEC}" /etc/sdk-release
