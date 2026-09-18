@@ -182,4 +182,6 @@ RUN NEAT_CORE_VERSION="$(dpkg-query -W -f='${Version}' sima-neat)" && \
     grep -Fxq "SDK Type = ${SDK_TYPE}" /etc/sdk-release && \
     grep -Fxq "Platform Version = ${BASE_SDK_VERSION}" /etc/sdk-release && \
     grep -Fxq "Neat Core = ${NEAT_CORE_VERSION}" /etc/sdk-release && \
-    grep -Fxq "Neat Core Spec = ${NEAT_CORE_SPEC}" /etc/sdk-release
+    _spec="$(sed -n 's/^Neat Core Spec = //p' /etc/sdk-release)" && \
+    case "${_spec}" in "${NEAT_CORE_SPEC}"|"${NEAT_CORE_SPEC}":*) ;; \
+      *) echo "Neat Core Spec is '${_spec}', expected '${NEAT_CORE_SPEC}' or it with a :sha" >&2; exit 1 ;; esac
