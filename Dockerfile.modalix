@@ -4,7 +4,8 @@ FROM debian:bookworm
 
 ARG BASE_SDK_VERSION=2.1.3
 # TEMPORARY PIN -- revert to a release tag ("v0.4.0") once feature/yolox-seg-pose merges.
-ARG NEAT_CORE_SPEC=feature/yolox-seg-pose:e42536a7a7bd
+
+ARG NEAT_CORE_SPEC=feature/yolox-seg-pose
 
 # List of additional packages that are to be deployed in SDK sysroot
 ARG SDK_PKG_LIST
