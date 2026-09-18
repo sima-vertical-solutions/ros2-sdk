@@ -22,6 +22,12 @@ concurrency:
 jobs:
   build:
     name: Build Modalix image (ARM64)
+    # A same-repo PR rebuilds the SHA the push event already built, and publishes nothing
+    # (--output type=cacheonly). Only fork PRs need this trigger; no push event fires here
+    # for them.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-24.04-arm
     outputs:
       install_image_resource: ${{ steps.image.outputs.install_image_resource }}
