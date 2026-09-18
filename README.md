@@ -152,25 +152,49 @@ estimator does -- cannot even configure against it.
 
 `/opt/gtsam` holds the same version built from its pinned upstream archive with
 `GTSAM_BUILD_UNSTABLE=ON`, installed by
-[`scripts/install-gtsam-unstable.sh`](scripts/install-gtsam-unstable.sh). It is
-**opt-in**: it is not on the default loader path and not on
-`CMAKE_PREFIX_PATH`, so nothing sees it unless it asks. Consumers point at it
-explicitly, which for VisualOdometry means the `GTSAM_PREFIX` its `build.sh` and
-`test.sh` already accept:
+[`scripts/install-gtsam-unstable.sh`](scripts/install-gtsam-unstable.sh).
+
+**The install is unconditional — every image gets this prefix, 14 MB of it.**
+Nothing opts out today. What is opt-in is *using* it: `/opt/gtsam` is on neither
+the default loader path (`/etc/ld.so.conf.d`) nor `CMAKE_PREFIX_PATH`, so a
+build sees it only by naming it. For VisualOdometry that is the `GTSAM_PREFIX`
+its `build.sh` and `test.sh` already accept:
 
 ```bash
 GTSAM_PREFIX=/opt/gtsam ./build.sh vo_pipeline
 ```
+
+Everything else in the image therefore resolves GTSAM exactly as it did before
+this prefix existed. If the install itself should become conditional — a build
+arg, or a separate image tag — say so; it is a one-line change to
+`Dockerfile.modalix` and the current unconditional form is a default, not a
+requirement.
 
 Every option that affects ABI matches the packaged copy -- system Eigen, TBB
 with the TBB allocator, bundled metis for nested dissection, quaternions off --
 so the two are interchangeable for anything linking either. `march=native` is
 off so the image stays portable. Only `GTSAM_BUILD_UNSTABLE` differs.
 
-CI verifies both libraries, the `BatchFixedLagSmoother` header and both CMake
-configs are present, then compiles, links and runs a probe that constructs a
-`BatchFixedLagSmoother`. Building GTSAM successfully proves little by itself:
-the unstable target is separate, and linking it is the whole point.
+### What the image build asserts
+
+The install script fails the build unless all of this holds, so every image
+re-proves it rather than relying on one manual check:
+
+- both libraries, the `BatchFixedLagSmoother` header and both CMake configs are
+  installed;
+- a probe that constructs a `BatchFixedLagSmoother` compiles, links and runs.
+  Building GTSAM proves little by itself — the unstable target is separate, and
+  linking it is the whole point;
+- `/opt/gtsam` does **not** appear in the loader cache (`ldconfig -p`), where it
+  would shadow the platform copy for every process in the image;
+- every rtabmap library that links GTSAM still resolves it from `/usr/local`,
+  read back from `ldd` rather than asserted;
+- `ros2 pkg list` still shows rtabmap's packages, and `ros2 pkg prefix
+  rtabmap_slam` still answers.
+
+The last three exist because "it built" and "it did not disturb rtabmap" are
+different claims, and only the second one matters to anyone else using this
+image.
 
 ## SiMa CLI
 

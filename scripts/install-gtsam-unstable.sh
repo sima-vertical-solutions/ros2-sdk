@@ -1,27 +1,19 @@
 #!/usr/bin/env bash
 
-# Installs GTSAM 4.2.2 with gtsam_unstable, which the drone's visual-inertial
-# estimator needs and the packaged GTSAM in this image does not provide.
+# Installs GTSAM 4.2.2 with gtsam_unstable at /opt/gtsam.
 #
-# The image already carries GTSAM 4.2.2 at /usr/local, pulled in by the
-# rtabmap_ros platform package (see install-ros2.sh). That build has no
-# gtsam_unstable: no libgtsam_unstable.so, no headers, no GTSAM_UNSTABLE CMake
-# config. BatchFixedLagSmoother lives there, so VisualOdometry's vo_estimator
-# capability -- which calls find_package(GTSAM_UNSTABLE 4.2 REQUIRED CONFIG) --
-# cannot configure in this image at all, and the drone release therefore cannot
-# build or test its VIO code in CI.
+# The GTSAM at /usr/local comes with the rtabmap_ros platform package, built without
+# gtsam_unstable -- where BatchFixedLagSmoother lives. VisualOdometry's vo_estimator
+# calls find_package(GTSAM_UNSTABLE 4.2 REQUIRED CONFIG) and cannot configure without it.
 #
-# This installs to /opt/gtsam rather than over /usr/local on purpose: the copy
-# there belongs to a platform package and rtabmap links against it. Consumers
-# opt in with CMAKE_PREFIX_PATH=/opt/gtsam (VisualOdometry's build.sh and
-# test.sh already take a GTSAM_PREFIX for exactly this).
+# Same version, separate prefix: /usr/local belongs to a platform package rtabmap links
+# against. Every ABI-affecting option matches that build; only GTSAM_BUILD_UNSTABLE
+# differs. 14 MB.
 #
-# The options below match the packaged build on every axis that affects ABI, so
-# the two are interchangeable for anything that links either one. Taken from the
-# installed config of the packaged copy (GTSAM_USE_TBB 1, GTSAM_DEFAULT_ALLOCATOR
-# TBB, find_dependency(Eigen3), metis-gtsam-if in its link interface) and from
-# the reference build used for the board measurements. The only deliberate
-# difference is GTSAM_BUILD_UNSTABLE.
+# The install is unconditional; what is opt-in is USING it. /opt/gtsam is on neither the
+# loader path nor CMAKE_PREFIX_PATH, so a build sees it only by naming it -- e.g. the
+# GTSAM_PREFIX that VisualOdometry's build.sh and test.sh take. The checks at the end
+# assert rtabmap still resolves the platform copy.
 
 set -euo pipefail
 
@@ -68,17 +60,13 @@ tar --extract --gzip --file "${archive}" --directory "${work_dir}"
 source_dir="${work_dir}/gtsam-${GTSAM_VERSION}"
 build_dir="${work_dir}/build"
 
-# GTSAM_USE_SYSTEM_EIGEN matters most: the estimator's public headers pass Eigen
-# types across the library boundary, so GTSAM and its callers must agree on one
-# Eigen. march=native is off so the image stays portable across hosts.
+# USE_SYSTEM_EIGEN: the estimator's headers pass Eigen types across the library
+# boundary, so GTSAM and its callers must agree on one Eigen.
 #
-# CMAKE_INSTALL_RPATH is not optional at a non-default prefix. With
-# SUPPORT_NESTED_DISSECTION the build installs its own libmetis-gtsam.so beside
-# libgtsam.so, and GTSAM sets no RUNPATH on its libraries. DT_RUNPATH is not
-# inherited by transitive lookups, so a consumer that bakes this prefix into its
-# own RUNPATH still would not resolve metis: the binary links, and then fails to
-# start with "libmetis-gtsam.so: cannot open shared object file". Verified: that
-# is exactly what happens without this line.
+# CMAKE_INSTALL_RPATH is required at a non-default prefix: NESTED_DISSECTION installs
+# libmetis-gtsam.so beside libgtsam.so with no RUNPATH, and DT_RUNPATH is not inherited
+# by transitive lookups -- without this the consumer links, then dies at startup with
+# "libmetis-gtsam.so: cannot open shared object file".
 cmake -S "${source_dir}" -B "${build_dir}" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${GTSAM_PREFIX}" \
@@ -103,22 +91,17 @@ cmake -S "${source_dir}" -B "${build_dir}" \
 cmake --build "${build_dir}" --parallel "$(nproc)"
 cmake --install "${build_dir}"
 
-# Not added to /etc/ld.so.conf.d: this prefix is opt-in, and consumers bake the
-# path into their RUNPATH (CMAKE_INSTALL_RPATH_USE_LINK_PATH). Putting it on the
-# default loader path would let it shadow the platform copy for everything.
+# Deliberately NOT added to /etc/ld.so.conf.d: on the default loader path this copy
+# would shadow the platform one for every process in the image.
 test -e "${GTSAM_PREFIX}/lib/libgtsam.so"
 test -e "${GTSAM_PREFIX}/lib/libgtsam_unstable.so"
 test -f "${GTSAM_PREFIX}/include/gtsam_unstable/nonlinear/BatchFixedLagSmoother.h"
 test -f "${GTSAM_PREFIX}/lib/cmake/GTSAM/GTSAMConfig.cmake"
 test -f "${GTSAM_PREFIX}/lib/cmake/GTSAM_UNSTABLE/GTSAM_UNSTABLEConfig.cmake"
 
-# Compile, link and run the one class this exists for. A successful build of
-# GTSAM proves little on its own: the unstable target is separate, and getting
-# it linked is the whole point.
-#
-# -ltbb/-ltbbmalloc are spelled out because this link line is hand-written. A
-# consumer using find_package(GTSAM) gets them from the imported target's
-# INTERFACE_LINK_LIBRARIES and needs to name neither.
+# Compile, link and RUN the one class this exists for -- building GTSAM proves little,
+# the unstable target is separate. -ltbb/-ltbbmalloc only because this link line is
+# hand-written; find_package(GTSAM) supplies them.
 printf '%s\n' \
     '#include <gtsam_unstable/nonlinear/BatchFixedLagSmoother.h>' \
     '#include <cstdio>' \
@@ -131,3 +114,58 @@ printf '%s\n' \
         -L"${GTSAM_PREFIX}/lib" -Wl,-rpath,"${GTSAM_PREFIX}/lib" \
         -lgtsam -lgtsam_unstable -ltbb -ltbbmalloc
 "${work_dir}/gtsam-unstable-check"
+
+# --- rtabmap must be untouched by the above -------------------------------------------
+# install-ros2 runs long before this script, so this asserts on the real thing. Any
+# failure fails the image build, so every future build re-proves it.
+ldconfig
+
+# 1. This prefix must not be in the loader cache: there it would shadow the platform
+#    copy for every process in the image.
+if ldconfig -p | grep -F "${GTSAM_PREFIX}"; then
+    echo "install-gtsam-unstable: ${GTSAM_PREFIX} reached the loader cache -- it would shadow the platform GTSAM" >&2
+    exit 1
+fi
+
+# 2. rtabmap's libraries must still resolve libgtsam from /usr/local -- the loader's
+#    answer, not ours.
+rtabmap_prefix=$(ls -d /usr/local/rtabmap* 2>/dev/null | head -1 || true)
+if [[ -z "${rtabmap_prefix}" ]]; then
+    echo "install-gtsam-unstable: no /usr/local/rtabmap* -- install-ros2 changed, update this check" >&2
+    exit 1
+fi
+checked=0
+while read -r lib; do
+    objdump -p "${lib}" 2>/dev/null | grep -q 'NEEDED.*libgtsam' || continue
+    # Matched on the whole ldd line, not a field index: an unresolved entry reads
+    # "libgtsam.so.4.2 => not found", whose third field is the word "not" -- which an
+    # emptiness test silently accepts.
+    line=$(ldd "${lib}" 2>/dev/null | grep -m1 libgtsam || true)
+    case "${line}" in
+        *"not found"*)
+            echo "install-gtsam-unstable: ${lib} cannot resolve libgtsam" >&2; exit 1 ;;
+    esac
+    resolved=${line##*=> }; resolved=${resolved%% *}
+    echo "  ${lib##*/} -> ${resolved:-<none>}"
+    case "${resolved}" in
+        "${GTSAM_PREFIX}"/*)
+            echo "install-gtsam-unstable: ${lib} resolved GTSAM from ${GTSAM_PREFIX}" >&2
+            exit 1 ;;
+        "") echo "install-gtsam-unstable: ${lib}: ldd named no libgtsam path" >&2; exit 1 ;;
+    esac
+    checked=$((checked + 1))
+done < <(find "${rtabmap_prefix}" -name '*.so*' -type f 2>/dev/null)
+echo "  rtabmap libraries linking GTSAM, checked: ${checked}"
+
+# 3. rtabmap's packages still come up under ros2. `set +u`: the ROS setup scripts read
+#    unset variables.
+set +u
+# shellcheck source=/dev/null
+source /usr/local/ros2/setup.bash
+# shellcheck source=/dev/null
+source "${rtabmap_prefix}/local_setup.bash"
+set -u
+pkgs=$(ros2 pkg list | grep -c '^rtabmap' || true)
+echo "  ros2 pkg list: ${pkgs} rtabmap packages"
+[[ "${pkgs}" -gt 0 ]] || { echo "install-gtsam-unstable: ros2 pkg list shows no rtabmap packages" >&2; exit 1; }
+ros2 pkg prefix rtabmap_slam
