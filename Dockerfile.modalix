@@ -81,9 +81,17 @@ RUN /usr/local/bin/install-ros2
 # neat-internals-dev installed by install-neat-core below. dpkg aborts on the overwrite.
 # The headers it would provide are all present via neat-internals-dev, so it is
 # superseded here rather than missing.
+#
+# rapidjson-dev is for foxglove_bridge, which a client release builds into its own overlay from
+# dependencies.repos rather than installing on the board by hand. It reaches rapidjson through
+# rosx_introspection, whose package.xml declares it. Verified absent from this image: it is in
+# the file list of none of the 1316 installed packages, while asio, nlohmann-json3 and
+# rosbag2_cpp -- the bridge's other dependencies -- are all already here. Header-only, so this
+# costs the image almost nothing.
 RUN apt-get update --allow-releaseinfo-change && \
     apt-get install -y --no-install-recommends \
         nlohmann-json3-dev \
+        rapidjson-dev \
         libgdal-dev \
         liborocos-kdl-dev \
         git-lfs \
