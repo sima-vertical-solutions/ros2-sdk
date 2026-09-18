@@ -21,6 +21,23 @@ neat_core_version="${NEAT_CORE_VERSION:-0.4.0}"
 # image did, so it has to be recorded here.
 neat_core_spec="${NEAT_CORE_SPEC:-v${neat_core_version}}"
 
+# RESOLVE a bare branch spec to <branch>:<sha> before recording it.
+#
+# provision.sh installs this exact string on the rover, reading it from the release's
+# deploy.env. A bare branch would be resolved AGAIN, on the board, at provision time -- so a
+# rover provisioned after the branch moved would get different neat from the one the overlay
+# was compiled against. Pinning it here makes image and board the same bytes by construction.
+#
+# The sha is recoverable from what was installed: sima-neat's version carries the artifact REF
+# sha as its last dot-separated field (0.4.0+feature-yolox-seg-pose.1c623216b45e). Note the
+# payload packages carry the BUILD sha instead, which is why this reads sima-neat specifically.
+# A plain vX.Y.Z release install has no sha to append and is left alone.
+if [[ "${neat_core_spec}" != *:* ]] \
+   && [[ ! "${neat_core_spec}" =~ ^v[0-9] ]] \
+   && [[ "${neat_core_version}" =~ \.([0-9a-f]{7,40})$ ]]; then
+  neat_core_spec="${neat_core_spec}:${BASH_REMATCH[1]}"
+fi
+
 if [[ -n "${release_tag}" ]]; then
   version="${release_tag}"
   sdk_release="${release_tag}"
