@@ -127,6 +127,9 @@ RUN python3 /opt/bin/simaai_setup_sdk.py modalix "${BASE_SDK_VERSION}" \
 COPY --chmod=0755 scripts/install-realsense.sh /usr/local/bin/install-realsense
 RUN /usr/local/bin/install-realsense
 
+COPY --chmod=0755 scripts/install-gtsam-unstable.sh /usr/local/bin/install-gtsam-unstable
+RUN /usr/local/bin/install-gtsam-unstable
+
 COPY --chmod=0755 scripts/install-sima-cli.sh /usr/local/bin/install-sima-cli
 RUN /usr/local/bin/install-sima-cli
 
