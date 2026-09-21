@@ -127,13 +127,20 @@ if ldconfig -p | grep -F "${GTSAM_PREFIX}"; then
     exit 1
 fi
 
-# 2. rtabmap's libraries must still resolve libgtsam from /usr/local -- the loader's
-#    answer, not ours.
+# 2. rtabmap must still resolve libgtsam from /usr/local -- the loader's answer, not
+#    ours. The GTSAM dependency is NOT in the rtabmap-ros wrappers: they need
+#    librtabmap_core, and that is the one with DT_NEEDED on libgtsam.so.4 -- and with
+#    no RUNPATH, so it takes whatever the loader offers. It lives in /usr/local/lib,
+#    so scanning only /usr/local/rtabmap* found nothing and the check passed empty.
 rtabmap_prefix=$(ls -d /usr/local/rtabmap* 2>/dev/null | head -1 || true)
 if [[ -z "${rtabmap_prefix}" ]]; then
     echo "install-gtsam-unstable: no /usr/local/rtabmap* -- install-ros2 changed, update this check" >&2
     exit 1
 fi
+scan_dirs=(/usr/local/lib)
+while read -r d; do
+    scan_dirs+=("${d}")
+done < <(ls -d /usr/local/rtabmap*/lib 2>/dev/null || true)
 checked=0
 while read -r lib; do
     objdump -p "${lib}" 2>/dev/null | grep -q 'NEEDED.*libgtsam' || continue
@@ -141,21 +148,38 @@ while read -r lib; do
     # "libgtsam.so.4.2 => not found", whose third field is the word "not" -- which an
     # emptiness test silently accepts.
     line=$(ldd "${lib}" 2>/dev/null | grep -m1 libgtsam || true)
+    # Both cases are matched on the whole line, never on a field index. "not found"
+    # puts the word "not" where the path goes, and a line with no "=> " at all leaves
+    # ${line##*=> } equal to the line itself -- so a soname passes as if it were a
+    # resolved path. Demand the separator before parsing anything out of it.
     case "${line}" in
         *"not found"*)
             echo "install-gtsam-unstable: ${lib} cannot resolve libgtsam" >&2; exit 1 ;;
+        *"=> "*) ;;
+        *)  echo "install-gtsam-unstable: ${lib}: ldd named no libgtsam path" >&2
+            echo "  ldd said: ${line:-<nothing>}" >&2; exit 1 ;;
     esac
     resolved=${line##*=> }; resolved=${resolved%% *}
-    echo "  ${lib##*/} -> ${resolved:-<none>}"
+    echo "  ${lib##*/} -> ${resolved}"
     case "${resolved}" in
         "${GTSAM_PREFIX}"/*)
             echo "install-gtsam-unstable: ${lib} resolved GTSAM from ${GTSAM_PREFIX}" >&2
             exit 1 ;;
-        "") echo "install-gtsam-unstable: ${lib}: ldd named no libgtsam path" >&2; exit 1 ;;
+        /usr/local/*) ;;
+        *)  echo "install-gtsam-unstable: ${lib} resolved GTSAM from ${resolved}, not /usr/local" >&2
+            exit 1 ;;
     esac
     checked=$((checked + 1))
-done < <(find "${rtabmap_prefix}" -name '*.so*' -type f 2>/dev/null)
-echo "  rtabmap libraries linking GTSAM, checked: ${checked}"
+done < <(find "${scan_dirs[@]}" -name '*.so*' -type f 2>/dev/null)
+echo "  /usr/local libraries linking GTSAM, checked: ${checked}"
+
+# Zero is a failure, not a pass: it means the scan found nothing to verify, which is
+# exactly how this check reported success while librtabmap_core went unexamined.
+if [[ "${checked}" -eq 0 ]]; then
+    echo "install-gtsam-unstable: found no /usr/local library with DT_NEEDED on libgtsam" >&2
+    echo "  -- the layout moved; this check proves nothing until it is pointed at it" >&2
+    exit 1
+fi
 
 # 3. rtabmap's packages still come up under ros2. `set +u`: the ROS setup scripts read
 #    unset variables.
