@@ -140,61 +140,27 @@ rs-enumerate-devices
 
 ## GTSAM with gtsam_unstable
 
-The image carries two GTSAM 4.2.2 installs, and the difference between them is
-deliberate.
+The image carries two GTSAM 4.2.2 installs. `/usr/local` is the one that arrives
+with the `rtabmap_ros` platform package, and it is built without
+`gtsam_unstable` -- so a package calling `find_package(GTSAM_UNSTABLE 4.2 REQUIRED
+CONFIG)`, as the drone's visual-inertial estimator does, cannot configure against
+it. `/opt/gtsam` is the same version built with `GTSAM_BUILD_UNSTABLE=ON` by
+[`scripts/install-gtsam-unstable.sh`](scripts/install-gtsam-unstable.sh); every
+other ABI-affecting option matches the packaged build, so the two are
+interchangeable for anything linking either.
 
-`/usr/local` holds the one that arrives with the `rtabmap_ros` platform package,
-and rtabmap links against it. That build has no `gtsam_unstable`: no
-`libgtsam_unstable.so`, no headers, no `GTSAM_UNSTABLE` CMake config.
-`BatchFixedLagSmoother` lives in `gtsam_unstable`, so a package that calls
-`find_package(GTSAM_UNSTABLE 4.2 REQUIRED CONFIG)` -- the drone's visual-inertial
-estimator does -- cannot even configure against it.
-
-`/opt/gtsam` holds the same version built from its pinned upstream archive with
-`GTSAM_BUILD_UNSTABLE=ON`, installed by
-[`scripts/install-gtsam-unstable.sh`](scripts/install-gtsam-unstable.sh).
-
-**The install is unconditional — every image gets this prefix, 14 MB of it.**
-Nothing opts out today. What is opt-in is *using* it: `/opt/gtsam` is on neither
-the default loader path (`/etc/ld.so.conf.d`) nor `CMAKE_PREFIX_PATH`, so a
-build sees it only by naming it. For VisualOdometry that is the `GTSAM_PREFIX`
-its `build.sh` and `test.sh` already accept:
+Every image gets `/opt/gtsam`. What is opt-in is *using* it: the prefix is on
+neither the loader path nor `CMAKE_PREFIX_PATH`, so a build sees it only by
+naming it.
 
 ```bash
 GTSAM_PREFIX=/opt/gtsam ./build.sh vo_pipeline
 ```
 
-Everything else in the image therefore resolves GTSAM exactly as it did before
-this prefix existed. If the install itself should become conditional — a build
-arg, or a separate image tag — say so; it is a one-line change to
-`Dockerfile.modalix` and the current unconditional form is a default, not a
-requirement.
-
-Every option that affects ABI matches the packaged copy -- system Eigen, TBB
-with the TBB allocator, bundled metis for nested dissection, quaternions off --
-so the two are interchangeable for anything linking either. `march=native` is
-off so the image stays portable. Only `GTSAM_BUILD_UNSTABLE` differs.
-
-### What the image build asserts
-
-The install script fails the build unless all of this holds, so every image
-re-proves it rather than relying on one manual check:
-
-- both libraries, the `BatchFixedLagSmoother` header and both CMake configs are
-  installed;
-- a probe that constructs a `BatchFixedLagSmoother` compiles, links and runs.
-  Building GTSAM proves little by itself — the unstable target is separate, and
-  linking it is the whole point;
-- `/opt/gtsam` does **not** appear in the loader cache (`ldconfig -p`), where it
-  would shadow the platform copy for every process in the image;
-- every rtabmap library that links GTSAM still resolves it from `/usr/local`,
-  read back from `ldd` rather than asserted;
-- `ros2 pkg list` still shows rtabmap's packages, and `ros2 pkg prefix
-  rtabmap_slam` still answers.
-
-The last three exist because "it built" and "it did not disturb rtabmap" are
-different claims, and only the second one matters to anyone else using this
-image.
+Nothing else in the image is affected, rtabmap included. The install script
+asserts that at build time -- the prefix stays out of the loader cache, and
+rtabmap still resolves GTSAM from `/usr/local` -- so a change that broke it would
+fail the build rather than ship.
 
 ## SiMa CLI
 
