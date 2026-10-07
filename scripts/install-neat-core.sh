@@ -2,9 +2,8 @@
 
 set -euo pipefail
 
-# WHAT to install, as a sima-cli ref. Normally a release tag ("v0.4.0"); see the Dockerfile
-# for why it is currently a branch snapshot instead.
-readonly NEAT_CORE_SPEC="${NEAT_CORE_SPEC:-v0.4.0}"
+# WHAT to install, as a sima-cli ref. Normally a release tag such as "v0.5.0".
+readonly NEAT_CORE_SPEC="${NEAT_CORE_SPEC:-v0.5.0}"
 # sima-neat is the package the stamp is read from; every *neat* package is checked below.
 readonly NEAT_STAMP_PACKAGE=sima-neat
 
@@ -47,10 +46,10 @@ trap 'rm -rf "${work_dir}"' EXIT
 #
 # They do not share one version string. The six payload packages carry the BUILD sha while the
 # two sima-neat* wrappers carry the artifact REF sha:
-#   neat-runtime        0.4.0+feature-yolox-seg-pose.ab1903f1ee74
-#   sima-neat           0.4.0+feature-yolox-seg-pose.e42536a7a7bd
+#   neat-runtime        0.5.0+feature-yolox-seg-pose.ab1903f1ee74
+#   sima-neat           0.5.0+feature-yolox-seg-pose.e42536a7a7bd
 # So compare the version with that trailing .<sha> removed -- uniform across all of them, and
-# still "0.4.0" for a plain release install.
+# still "0.5.0" for a plain release install.
 base_version() { sed -E 's/\.[0-9a-f]{7,40}$//' <<<"$1"; }
 
 # Anchor on the stamp package rather than on whichever package sorts first: if the straggler
