@@ -35,7 +35,7 @@ Platform Version = 2.1.3
 Platform Base = 2.1.3
 Platform Channel = release
 Platform Repository = https://repo.sima.ai/elxr/deb/release
-Neat Core = 0.4.0
+Neat Core = 0.5.0
 ROS2 SDK Version = main:0123456789ab:20260805T144500Z
 Version = main:0123456789ab:20260805T144500Z
 ```
@@ -102,7 +102,7 @@ not pass `--sysroot`. The container and Modalix DevKit both use Debian 12 on
 ARM64, so native compilation also allows ROS 2 to resolve its host-installed
 development dependencies normally.
 
-The image includes Neat Core 0.4.0. Its `sima-neat` runtime and `sima-neat-dev`
+The image includes Neat Core 0.5.0. Its `sima-neat` runtime and `sima-neat-dev`
 development packages are installed into the native `/usr` paths, so CMake
 projects can use `find_package(SimaNeat REQUIRED)` without a separate Neat
 installation step.
