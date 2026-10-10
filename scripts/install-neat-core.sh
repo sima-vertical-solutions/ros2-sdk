@@ -5,7 +5,7 @@ set -euo pipefail
 # WHAT to install, as a sima-cli ref: a release tag ("v0.5.0") or a branch. The Dockerfile
 # always passes it; this default only covers a hand-run, so keep it on the pinned ref.
 readonly NEAT_CORE_SPEC="${NEAT_CORE_SPEC:-release-0.5.1-pc}"
-# sima-neat is the package the stamp is read from; every *neat* package is checked below.
+# sima-neat is the package the installed version is read from.
 readonly NEAT_STAMP_PACKAGE=sima-neat
 
 if [[ "${EUID}" -ne 0 ]]; then
@@ -29,50 +29,12 @@ trap 'rm -rf "${work_dir}"' EXIT
         -f
 )
 
-# VERIFY.
-#
-# The old check compared each installed version against the requested one, which worked only
-# while the spec WAS a version. A branch:commit spec cannot be checked that way -- there is no
-# string to predict, because the artifact ref and the debs inside it carry DIFFERENT SHAs
-# (the ref e42536a7a7bd ships debs stamped ab1903f1ee74). Demanding equality there would fail
-# every time; dropping the check entirely would let a partial or mixed install through silently.
-#
-# So: every neat package must be present and at the SAME version as the others, which is what a
-# mixed install breaks. A plain vX.Y.Z spec additionally keeps the exact equality check it
-# always had, since there the expected string IS predictable.
-# One `core@<ref>` install updates the WHOLE set -- neat-appcomplex, -common, -ev74-firmware,
-# -gst-plugins, -internals-dev, -runtime, sima-neat and sima-neat-dev -- so nothing is installed
-# separately here. What is worth checking is that they all moved TOGETHER: a half-applied upgrade
-# leaves some at the old version and is exactly the skew this pin exists to prevent.
-#
-# They do not share one version string. The six payload packages carry the BUILD sha while the
-# two sima-neat* wrappers carry the artifact REF sha:
-#   neat-runtime        0.5.1+release-0.5.1-pc.ab1903f1ee74
-#   sima-neat           0.5.1+release-0.5.1-pc.23511f45158a
-# So compare the version with that trailing .<sha> removed -- uniform across all of them, and
-# still "0.5.1" for a plain release install.
-base_version() { sed -E 's/\.[0-9a-f]{7,40}$//' <<<"$1"; }
-
-# Anchor on the stamp package rather than on whichever package sorts first: if the straggler
-# happened to sort earlier it would set the baseline and the error would blame every package
-# that upgraded correctly.
+# VERIFY that the stamp package landed. Which packages a ref moves is the REF's business: a
+# branch can ship new sima-neat* wrappers over unchanged payload debs (release-0.5.1-pc does),
+# so there is no uniform version to require across the set.
 expected_version="$(dpkg-query -W -f='${Version}' "${NEAT_STAMP_PACKAGE}" 2>/dev/null || true)"
 if [[ -z "${expected_version}" ]]; then
     echo "${NEAT_STAMP_PACKAGE} is not installed after 'sima-cli neat install core@${NEAT_CORE_SPEC}'." >&2
-    exit 1
-fi
-expected_base="$(base_version "${expected_version}")"
-
-mismatch=""
-while read -r package installed_version; do
-    [[ -n "${installed_version}" ]] || continue      # neat-libcamera* ship no version; skip
-    [[ "$(base_version "${installed_version}")" == "${expected_base}" ]] \
-        || mismatch+="  ${package} ${installed_version}"$'\n'
-done < <(dpkg-query -W -f='${Package} ${Version}\n' '*neat*' 2>/dev/null | sort)
-
-if [[ -n "${mismatch}" ]]; then
-    echo "Half-applied neat install -- ${NEAT_STAMP_PACKAGE} is ${expected_version}, but these are not on ${expected_base}:" >&2
-    printf '%s' "${mismatch}" >&2
     exit 1
 fi
 
