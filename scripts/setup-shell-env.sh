@@ -17,18 +17,22 @@ case $- in
 esac
 set +u
 
+# ros2 is the only overlay this image guarantees; navigation and rtabmap-ros
+# have no platform 3.0 builds yet and are sourced only when present.
+if [[ ! -r /usr/local/ros2/local_setup.bash ]]; then
+    echo "Missing SDK environment: /usr/local/ros2/local_setup.bash" >&2
+    unset ros2_sdk_restore_nounset
+    return 1
+fi
+
 for ros2_sdk_setup in \
     /usr/local/ros2/local_setup.bash \
     /usr/local/navigation/local_setup.bash \
     /usr/local/rtabmap-ros/local_setup.bash; do
-    if [[ ! -r "${ros2_sdk_setup}" ]]; then
-        echo "Missing SDK environment: ${ros2_sdk_setup}" >&2
-        unset ros2_sdk_setup ros2_sdk_restore_nounset
-        return 1
+    if [[ -r "${ros2_sdk_setup}" ]]; then
+        # shellcheck disable=SC1090
+        source "${ros2_sdk_setup}"
     fi
-
-    # shellcheck disable=SC1090
-    source "${ros2_sdk_setup}"
 done
 
 if [[ "${ros2_sdk_restore_nounset}" == "1" ]]; then

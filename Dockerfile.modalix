@@ -1,11 +1,34 @@
-# Generated Dockerfile for modalix Build:release[2.1.3]
+# ROS 2 SDK for the platform 3.0 line: eLxr bianca (Debian 13), native arm64.
+# The apt source, keys and sysroot call follow the generated 3.0 eLxr SDK
+# Dockerfile (Build:daily[...-1774]); everything else is this repo's layout.
 
-FROM debian:bookworm
+FROM elxrlinux/elxr:bianca-26.04.02
 
-ARG BASE_SDK_VERSION=2.1.3
-# TEMPORARY PIN -- revert to a release tag ("v0.5.0") once feature/yolox-seg-pose merges.
+ARG BASE_SDK_VERSION=3.0.0
+# develop is the platform 3.0.0 line (Neat 0.6.0, ABI 6). release-0.6-ea was cut
+# before feature/yolox-seg-pose merged and cannot decode yolox-seg-pose archives.
+ARG NEAT_CORE_SPEC=develop:8b9a54467791
 
-ARG NEAT_CORE_SPEC=feat/yolox_freeze
+# Daily platform channel. The internal host carries every daily build, signed;
+# the public mirror (https://debian.neat.sima.ai/daily, unsigned, trusted=yes)
+# lags it by weeks. Build on VPN.
+ARG PLATFORM_CHANNEL=daily
+ARG PLATFORM_REPOSITORY=http://sw-web.eng.sima.ai/deb/daily
+ARG PLATFORM_ORIGIN=sw-web.eng.sima.ai
+# The daily build flashed on the DevKits, which must be the one the Neat ref's
+# internals snapshot targets (its EV74 firmware activates only on that exact
+# kernel build). Every platform package the image installs, and the sysroot
+# below, are pinned to it so image and board agree; the channel itself carries
+# dozens of builds and a bare "3.0.0" matches none.
+ARG PLATFORM_BUILD=2038
+ARG PALETTE_BUILD="3.0.0~git*-${PLATFORM_BUILD}"
+ARG LIBC_DEV_VERSION="6.18.3-${PLATFORM_BUILD}"
+# The cross sysroot under /opt/toolchain is ~6 GB and no native build needs
+# it; SKIP_SYSROOT=1 leaves it out.
+ARG SKIP_SYSROOT=0
+ARG WITH_REALSENSE=1
+# Build-context directory holding the trixie ros2 deb (see install-ros2.sh).
+ARG ROS2_DEB_SRC=vendor
 
 # List of additional packages that are to be deployed in SDK sysroot
 ARG SDK_PKG_LIST
@@ -16,21 +39,23 @@ ENV SDK_PKG_LIST="\
 	${SDK_PKG_LIST}"
 
 RUN dpkg --add-architecture arm64
-RUN dpkg --add-architecture arc
-RUN dpkg --add-architecture armhf
 RUN apt-get clean && \
     apt-get update --allow-releaseinfo-change && \
-    apt-get install -y wget pip
-RUN wget -qO - https://mirror.elxr.dev/elxr/public.gpg | gpg --dearmor -o /etc/apt/trusted.gpg.d/elxr.gpg
-RUN wget -qO - https://packages.fluentbit.io/fluentbit.key | gpg --dearmor > /etc/apt/trusted.gpg.d/fluentbit.gpg
-RUN wget --no-check-certificate -O - https://repo.sima.ai/elxr/deb/simaai.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/simaai.gpg
-RUN chmod 644 /etc/apt/trusted.gpg.d/elxr.gpg
-RUN chmod 644 /etc/apt/trusted.gpg.d/fluentbit.gpg
+    apt-get install -y apt-utils wget pip gnupg ca-certificates
+RUN wget --no-check-certificate -O - http://sw-web.eng.sima.ai/deb/simaai.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/simaai.gpg
+# The daily suites are signed with the release key (4F87A7B80CFC8F4B), which
+# sw-web's own simaai.gpg does not carry -- only repo.sima.ai's does. Append it
+# or apt refuses the suite as unsigned (SOCSW-6003).
+RUN wget --no-check-certificate -O - https://repo.sima.ai/elxr/deb/simaai.gpg | gpg --dearmor >> /etc/apt/trusted.gpg.d/simaai.gpg
 RUN chmod 644 /etc/apt/trusted.gpg.d/simaai.gpg
 
-RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/elxr.gpg] https://mirror.elxr.dev/elxr aria main" > /etc/apt/sources.list.d/elxr.list
-RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/fluentbit.gpg] https://packages.fluentbit.io/debian/bookworm bookworm main" >> /etc/apt/sources.list.d/elxr.list
-RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/simaai.gpg] https://repo.sima.ai/elxr/deb/release bookworm non-free" >> /etc/apt/sources.list.d/elxr.list
+RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/simaai.gpg] ${PLATFORM_REPOSITORY} agate non-free" > /etc/apt/sources.list.d/simaai.list
+
+# Platform packages win over eLxr's own (kernel headers, libcamera, ...), as on
+# the board, and within the channel the DevKit build wins over newer dailies.
+# apt rejects a version pin on "Package: *", hence the explicit name globs.
+RUN printf 'Package: *\nPin: origin "%s"\nPin-Priority: 999\n\nPackage: simaai-* linux-libc-dev linux-headers-* a65apps cvu-sw libcamera* tvm python3-tvm swsoc-* smifb-* lttng-modules-*\nPin: version *-%s\nPin-Priority: 1001\n' \
+        "${PLATFORM_ORIGIN}" "${PLATFORM_BUILD}" > /etc/apt/preferences.d/stable.pref
 
 RUN apt-get update --allow-releaseinfo-change && \
     apt-get install -y --no-install-recommends \
@@ -55,10 +80,7 @@ RUN apt-get update --allow-releaseinfo-change && \
 	openssh-client \
 	simaai-sdk-tools
 
-RUN echo "Package: *" > /etc/apt/preferences.d/stable.pref
-RUN echo "Pin: origin \"repo.sima.ai/elxr\"" >> /etc/apt/preferences.d/stable.pref
-RUN echo "Pin-Priority: 999" >> /etc/apt/preferences.d/stable.pref
-
+COPY ${ROS2_DEB_SRC}/ros2_*_arm64.deb /tmp/ros2-deb/
 COPY --chmod=0755 scripts/install-ros2.sh /usr/local/bin/install-ros2
 RUN /usr/local/bin/install-ros2
 
@@ -77,10 +99,11 @@ RUN /usr/local/bin/install-ros2
 # git-lfs is for application repos whose model archives are LFS objects; nothing in the
 # SDK itself needs it.
 #
-# NOT simaai-socpipeline-dev: it ships /usr/include/configFunctions.h, which is also in
-# neat-internals-dev installed by install-neat-core below. dpkg aborts on the overwrite.
-# The headers it would provide are all present via neat-internals-dev, so it is
-# superseded here rather than missing.
+# simaai-socpipeline-dev is still left out: nothing built against this image needs
+# it (the neat-internals-dev header clash that first excluded it is gone with 0.6).
+#
+# tvm: the Neat installer requires libtvm_runtime.so on the native linker path and
+# otherwise copies it out of the cross sysroot, which SKIP_SYSROOT=1 leaves out.
 RUN apt-get update --allow-releaseinfo-change && \
     apt-get install -y --no-install-recommends \
         nlohmann-json3-dev \
@@ -88,20 +111,26 @@ RUN apt-get update --allow-releaseinfo-change && \
         liborocos-kdl-dev \
         git-lfs \
         simaai-memory-lib-dev \
+        tvm \
         libjsoncpp-dev \
         libgstreamer1.0-dev \
         libgstreamer-plugins-base1.0-dev && \
     git lfs install --system && \
     rm -rf /var/lib/apt/lists/*
 
-# Build-time python imports of the sima source. --break-system-packages because bookworm
-# marks the system interpreter EXTERNALLY-MANAGED; this image has no venv by design, the
-# ROS 2 install being system-wide already.
+# Build-time python imports of the sima source. pydantic comes from apt: the pip
+# release wants a newer typing_extensions than the Debian one the ros2 deb pulls
+# in, and pip cannot replace a Debian-owned package. py_trees and xacro have no
+# Debian package; --break-system-packages because the system interpreter is
+# EXTERNALLY-MANAGED and this image has no venv by design, the ROS 2 install
+# being system-wide already.
 #
 # shapely and pyclipper are deliberately absent: those are application runtime deps that
 # get vendored into an application's own install tree, not built against here.
-RUN pip3 install --break-system-packages --no-cache-dir \
-        pydantic \
+RUN apt-get update --allow-releaseinfo-change && \
+    apt-get install -y --no-install-recommends python3-pydantic && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip3 install --break-system-packages --no-cache-dir \
         py_trees \
         xacro
 
@@ -117,15 +146,14 @@ RUN if uname -a | grep -q '#[0-9]*-Ubuntu'; then \
         --privileged mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc || true; \
     fi
 
-RUN if [ "x86_64" = "x86_64" ]; then apt update --allow-releaseinfo-change && apt install \
-    arch-test -y; fi
-
-RUN python3 /opt/bin/simaai_setup_sdk.py modalix "${BASE_SDK_VERSION}" \
-	 \
-	"${SDK_PKG_LIST}"
+# Arguments: platform, palette version glob, linux-libc-dev version, extra packages.
+RUN if [ "${SKIP_SYSROOT}" = "1" ]; then echo "SKIP_SYSROOT=1: no cross sysroot"; else \
+        python3 /opt/bin/simaai_setup_sdk.py modalix "${PALETTE_BUILD}" \
+            "${LIBC_DEV_VERSION}" \
+            "${SDK_PKG_LIST}"; fi
 
 COPY --chmod=0755 scripts/install-realsense.sh /usr/local/bin/install-realsense
-RUN /usr/local/bin/install-realsense
+RUN if [ "${WITH_REALSENSE}" = "1" ]; then /usr/local/bin/install-realsense; else echo "WITH_REALSENSE=0: skipped"; fi
 
 COPY --chmod=0755 scripts/install-sima-cli.sh /usr/local/bin/install-sima-cli
 RUN /usr/local/bin/install-sima-cli
@@ -156,8 +184,6 @@ ARG SDK_GIT_HASH="nogit"
 ARG SDK_BUILD_TIME="unknown-time"
 ARG SDK_TYPE="ros2-sdk"
 ARG SDK_PROFILE="native-arm64"
-ARG PLATFORM_CHANNEL="release"
-ARG PLATFORM_REPOSITORY="https://repo.sima.ai/elxr/deb/release"
 COPY --chmod=0755 scripts/write-sdk-release.sh /usr/local/bin/write-sdk-release
 # NEAT_CORE_VERSION is read back from dpkg, not passed in: the spec above is a ref, and the
 # version it resolves to is only knowable after the install. Deriving it here means

@@ -9,11 +9,11 @@ git_hash="${5:-nogit}"
 build_time="${6:-unknown-time}"
 sdk_type="${SDK_TYPE:-ros2-sdk}"
 sdk_profile="${SDK_PROFILE:-native-arm64}"
-platform_version="${PLATFORM_VERSION:-2.1.3}"
+platform_version="${PLATFORM_VERSION:-3.0.0}"
 platform_base="${platform_version%%~pre*}"
-platform_channel="${PLATFORM_CHANNEL:-release}"
-platform_repository="${PLATFORM_REPOSITORY:-https://repo.sima.ai/elxr/deb/release}"
-neat_core_version="${NEAT_CORE_VERSION:-0.4.0}"
+platform_channel="${PLATFORM_CHANNEL:-daily}"
+platform_repository="${PLATFORM_REPOSITORY:-http://sw-web.eng.sima.ai/deb/daily}"
+neat_core_version="${NEAT_CORE_VERSION:-0.6.0}"
 # The REF that was installed, as opposed to the version it resolved to. Both are needed and
 # neither can be derived from the other: the version's branch slug is lossy (a "/" becomes "-",
 # so feature-yolox-seg-pose could have been feature/yolox-seg-pose or feature-yolox/seg-pose),

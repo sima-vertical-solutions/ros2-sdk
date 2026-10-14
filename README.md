@@ -1,8 +1,32 @@
 # ROS 2 SDK for Modalix
 
-This repository builds the Modalix 2.1.3 SDK container from
+This repository builds the Modalix SDK container from
 [`Dockerfile.modalix`](https://github.com/SiMa-ai/swsoc-simaai-elxr-doc/blob/master/Dockerfile.modalix)
 and publishes ARM64-only images to GitHub Container Registry.
+
+## Platform 3.0 branch
+
+This branch targets platform 3.0: eLxr bianca (Debian 13) on the board and in
+the container (`elxrlinux/elxr:bianca-26.04.02`), Neat Core 0.6 (`develop`,
+ABI 6, `libsima_neat.so.6`), Python 3.13, GCC 14. Platform packages come from
+the signed daily channel and are pinned to the build the Neat ref targets and
+the DevKits are flashed with (`PLATFORM_BUILD`, default 2038 for
+`develop:8b9a54467791`; `PALETTE_BUILD='3.0.0*'` floats to the newest daily
+instead); the internal host is reachable on VPN only, so the image is built
+locally for now:
+
+```bash
+mkdir -p vendor   # the trixie ros2 deb, see "ROS 2 packages"
+docker build --platform linux/arm64 -f Dockerfile.modalix \
+  --build-arg SDK_GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
+  --build-arg SDK_GIT_HASH=$(git rev-parse --short=12 HEAD) \
+  --build-arg SDK_BUILD_TIME=$(date -u +%Y%m%dT%H%M%SZ) \
+  -t ghcr.io/sima-vertical-solutions/ros2-sdk-feat-platform-3.0-trixie:local .
+```
+
+`SKIP_SYSROOT=1` leaves out the ~6 GB cross sysroot no native build needs;
+`WITH_REALSENSE=0` skips the RealSense build. Not in this image yet: rtabmap_ros
+and navigation, which have no platform 3.0 builds.
 
 ## Install the SDK
 
@@ -31,11 +55,12 @@ Product Name = SiMa.ai ROS2 SDK
 SDK Type = ros2-sdk
 SDK Release = main
 SDK Profile = native-arm64
-Platform Version = 2.1.3
-Platform Base = 2.1.3
-Platform Channel = release
-Platform Repository = https://repo.sima.ai/elxr/deb/release
-Neat Core = 0.4.0
+Platform Version = 3.0.0
+Platform Base = 3.0.0
+Platform Channel = daily
+Platform Repository = http://sw-web.eng.sima.ai/deb/daily
+Neat Core = 0.6.0+develop.8b9a54467791
+Neat Core Spec = develop:8b9a54467791
 ROS2 SDK Version = main:0123456789ab:20260805T144500Z
 Version = main:0123456789ab:20260805T144500Z
 ```
@@ -84,28 +109,29 @@ Pull requests build the image without publishing it.
 
 Image builds run on GitHub's native `ubuntu-24.04-arm` runner.
 
-The image installs `ros2`, `rtabmap-ros`, `simaai-rtabmap`, and
-`vdp-navigation` from the signed SiMa release repository at
-`https://repo.sima.ai/elxr/deb/release`. It also installs the Debian `colcon`
-components, `vcstool`, and ROS 2 workspace build dependencies.
+The image installs `ros2` from the trixie build of
+`sima-vertical-solutions/ros2` (branch `sima/jazzy-trixie`), a single
+`ros2_<version>_arm64.deb` that is not published to Vulcan yet: download the
+`ros2-deb-arm64` artifact of its CI run into `vendor/` before building
+(`gh run download <run-id> -R sima-vertical-solutions/ros2 -n ros2-deb-arm64 -D vendor`).
+It also installs the Debian `colcon` components, `vcstool`, and ROS 2 workspace
+build dependencies.
 
 [`scripts/install-ros2.sh`](scripts/install-ros2.sh) contains the installation
-and smoke-test procedure invoked by the Docker build. The script verifies that
-all four SiMa ROS packages are available from the release repository before it
-installs them.
+and smoke-test procedure invoked by the Docker build.
 
 ## Native ARM64 builds
 
 The ROS 2 SDK compiles applications natively with the container's ARM64 GCC and
 G++. It does not activate the Neat SDK's cross-compilation environment and does
-not pass `--sysroot`. The container and Modalix DevKit both use Debian 12 on
-ARM64, so native compilation also allows ROS 2 to resolve its host-installed
-development dependencies normally.
+not pass `--sysroot`. The container and Modalix DevKit both use eLxr bianca
+(Debian 13) on ARM64, so native compilation also allows ROS 2 to resolve its
+host-installed development dependencies normally.
 
-The image includes Neat Core 0.4.0. Its `sima-neat` runtime and `sima-neat-dev`
-development packages are installed into the native `/usr` paths, so CMake
-projects can use `find_package(SimaNeat REQUIRED)` without a separate Neat
-installation step.
+The image includes Neat Core 0.6.0, pinned to `develop:8b9a54467791`. Its
+`sima-neat` runtime and `sima-neat-dev` development packages are installed into
+the native `/usr` paths, so CMake projects can use
+`find_package(SimaNeat REQUIRED)` without a separate Neat installation step.
 
 [`scripts/setup-native-build-env.sh`](scripts/setup-native-build-env.sh) makes
 the prebuilt Neat headers and libraries available as an additional dependency
