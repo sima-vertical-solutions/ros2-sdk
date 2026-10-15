@@ -2,8 +2,7 @@
 
 # Configure native ARM64 application builds while exposing the prebuilt Neat
 # SDK as a dependency prefix. This intentionally does not set CROSS_COMPILE or
-# pass --sysroot: the container and Modalix DevKit are both eLxr bianca
-# (Debian 13) ARM64.
+# pass --sysroot: the container and Modalix DevKit are both Debian 12 ARM64.
 
 if [[ "$(dpkg --print-architecture)" != "arm64" ]]; then
     echo "The ROS 2 SDK supports native ARM64 builds only" >&2
@@ -26,9 +25,5 @@ export CXXFLAGS="${CFLAGS}"
 export LDFLAGS="-L/usr/lib/aarch64-linux-gnu -L${NEAT_SDK_ROOT}/usr/lib/aarch64-linux-gnu"
 export PKG_CONFIG_PATH="${NEAT_SDK_ROOT}/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
 export CMAKE_LIBRARY_PATH="${NEAT_SDK_ROOT}/usr/lib:${NEAT_SDK_ROOT}/usr/lib/aarch64-linux-gnu:${NEAT_SDK_ROOT}/usr/lib/aarch64-linux-gnu/blas:${NEAT_SDK_ROOT}/usr/lib/aarch64-linux-gnu/lapack"
-# Only with the cross sysroot present (SKIP_SYSROOT=0); otherwise the native
-# OpenCV resolves on its own.
-if [[ -d "${NEAT_SDK_ROOT}/usr/lib/aarch64-linux-gnu/cmake/opencv4" ]]; then
-    export OpenCV_DIR="${NEAT_SDK_ROOT}/usr/lib/aarch64-linux-gnu/cmake/opencv4"
-fi
+export OpenCV_DIR="${NEAT_SDK_ROOT}/usr/lib/aarch64-linux-gnu/cmake/opencv4"
 export CODEC_INCLUDE_DIRS="${NEAT_SDK_ROOT}/usr/include/simaai/codec"

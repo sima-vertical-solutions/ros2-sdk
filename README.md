@@ -6,13 +6,11 @@ and publishes ARM64-only images to GitHub Container Registry.
 
 ## Platform 3.0 branch
 
-This branch targets platform 3.0: eLxr bianca (Debian 13) on the board and in
-the container (`elxrlinux/elxr:bianca-26.04.02`), Neat Core 0.6 (`develop`,
-ABI 6, `libsima_neat.so.6`), Python 3.13, GCC 14. Platform packages come from
-the public daily mirror (`https://debian.neat.sima.ai/daily`, unsigned) and are
-pinned to the build the Neat ref targets and the DevKits are flashed with
-(`PLATFORM_BUILD`, default 2121 for `develop:7c7a0765f2d8`;
-`PALETTE_BUILD='3.0.0*'` floats to the newest daily instead). The ros2 deb is
+This branch targets platform 3.0: Debian 13 (trixie) with eLxr `bianca`, Neat
+Core 0.6 (`develop`, ABI 6, `libsima_neat.so.6`), Python 3.13, GCC 14. Platform
+packages come from the public daily mirror (`https://debian.neat.sima.ai/daily`,
+unsigned) and are pinned to `PLATFORM_BUILD`, the build the Neat ref targets and
+the DevKits are flashed with (2121 for `develop:7c7a0765f2d8`). The ros2 deb is
 not on Vulcan yet, so it is vendored by hand and the image is built locally for
 now:
 
@@ -25,9 +23,8 @@ docker build --platform linux/arm64 -f Dockerfile.modalix \
   -t ghcr.io/sima-vertical-solutions/ros2-sdk-feat-platform-3.0-trixie:local .
 ```
 
-`SKIP_SYSROOT=1` leaves out the ~6 GB cross sysroot no native build needs;
-`WITH_REALSENSE=0` skips the RealSense build. Not in this image yet: rtabmap_ros
-and navigation, which have no platform 3.0 builds.
+Not in this image yet: rtabmap_ros and navigation, which have no platform 3.0
+builds.
 
 ## Install the SDK
 
@@ -125,9 +122,9 @@ and smoke-test procedure invoked by the Docker build.
 
 The ROS 2 SDK compiles applications natively with the container's ARM64 GCC and
 G++. It does not activate the Neat SDK's cross-compilation environment and does
-not pass `--sysroot`. The container and Modalix DevKit both use eLxr bianca
-(Debian 13) on ARM64, so native compilation also allows ROS 2 to resolve its
-host-installed development dependencies normally.
+not pass `--sysroot`. The container and Modalix DevKit both use Debian 13 on
+ARM64, so native compilation also allows ROS 2 to resolve its host-installed
+development dependencies normally.
 
 The image includes Neat Core 0.6.0, pinned to `develop:7c7a0765f2d8`. Its
 `sima-neat` runtime and `sima-neat-dev` development packages are installed into
