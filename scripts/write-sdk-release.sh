@@ -29,7 +29,7 @@ neat_core_spec="${NEAT_CORE_SPEC:-v${neat_core_version}}"
 # was compiled against. Pinning it here makes image and board the same bytes by construction.
 #
 # The sha is recoverable from what was installed: sima-neat's version carries the artifact REF
-# sha as its last dot-separated field (0.4.0+feature-yolox-seg-pose.1c623216b45e). Note the
+# sha as its last dot-separated field (0.5.1+release-0.5.1-pc.23511f45158a). Note the
 # payload packages carry the BUILD sha instead, which is why this reads sima-neat specifically.
 # A plain vX.Y.Z release install has no sha to append and is left alone.
 if [[ "${neat_core_spec}" != *:* ]] \

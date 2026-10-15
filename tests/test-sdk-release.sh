@@ -35,7 +35,7 @@ fi
 SDK_TYPE="ros2-sdk" \
 SDK_PROFILE="native-arm64" \
 PLATFORM_VERSION="2.1.3~pre4460" \
-NEAT_CORE_VERSION="0.4.1~pre12" \
+NEAT_CORE_VERSION="0.5.0~pre12" \
 PLATFORM_CHANNEL="pre-release" \
 PLATFORM_REPOSITORY="https://debian.neat.sima.ai/pre-release" \
   "${ROOT_DIR}/scripts/write-sdk-release.sh" \
@@ -54,7 +54,7 @@ grep -Fxq "Platform Version = 2.1.3~pre4460" "${tag_release}"
 grep -Fxq "Platform Base = 2.1.3" "${tag_release}"
 grep -Fxq "Platform Channel = pre-release" "${tag_release}"
 grep -Fxq "Platform Repository = https://debian.neat.sima.ai/pre-release" "${tag_release}"
-grep -Fxq "Neat Core = 0.4.1~pre12" "${tag_release}"
+grep -Fxq "Neat Core = 0.5.0~pre12" "${tag_release}"
 grep -Fxq "ROS2 SDK Version = v2.1.3" "${tag_release}"
 grep -Fxq "Version = v2.1.3" "${tag_release}"
 if grep -Eq 'ignored-(branch|hash|time)' "${tag_release}"; then
