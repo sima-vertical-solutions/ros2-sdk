@@ -13,9 +13,11 @@ set -euo pipefail
 #
 # rtabmap_ros and navigation have no trixie builds yet; this image ships
 # neither. The array stays, empty: provision.sh and gen_release.sh read it out
-# of this file to learn which Vulcan packages the image carries.
+# of this file to learn which Vulcan packages the image carries, scanning from
+# the opening line to a line that starts with ")" -- keep the two on separate lines.
 # shellcheck disable=SC2034
-readonly -a vulcan_packages=()
+readonly -a vulcan_packages=(
+)
 
 readonly ROS2_DEB_DIR="${ROS2_DEB_DIR:-/tmp/ros2-deb}"
 
