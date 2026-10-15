@@ -12,7 +12,7 @@ sdk_profile="${SDK_PROFILE:-native-arm64}"
 platform_version="${PLATFORM_VERSION:-3.0.0}"
 platform_base="${platform_version%%~pre*}"
 platform_channel="${PLATFORM_CHANNEL:-daily}"
-platform_repository="${PLATFORM_REPOSITORY:-http://sw-web.eng.sima.ai/deb/daily}"
+platform_repository="${PLATFORM_REPOSITORY:-https://debian.neat.sima.ai/daily}"
 neat_core_version="${NEAT_CORE_VERSION:-0.6.0}"
 # The REF that was installed, as opposed to the version it resolved to. Both are needed and
 # neither can be derived from the other: the version's branch slug is lossy (a "/" becomes "-",

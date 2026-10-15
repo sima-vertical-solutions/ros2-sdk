@@ -7,20 +7,24 @@ FROM elxrlinux/elxr:bianca-26.04.02
 ARG BASE_SDK_VERSION=3.0.0
 # develop is the platform 3.0.0 line (Neat 0.6.0, ABI 6). release-0.6-ea was cut
 # before feature/yolox-seg-pose merged and cannot decode yolox-seg-pose archives.
-ARG NEAT_CORE_SPEC=develop:8b9a54467791
+ARG NEAT_CORE_SPEC=develop:7c7a0765f2d8
 
-# Daily platform channel. The internal host carries every daily build, signed;
-# the public mirror (https://debian.neat.sima.ai/daily, unsigned, trusted=yes)
-# lags it by weeks. Build on VPN.
+# Daily platform channel: the public mirror of the internal sw-web daily repo,
+# synced by sima-neat/sdk, same builds, unsigned (hence trusted=yes). On VPN the
+# signed internal host works too:
+#   --build-arg PLATFORM_REPOSITORY=http://sw-web.eng.sima.ai/deb/daily
+#   --build-arg PLATFORM_ORIGIN=sw-web.eng.sima.ai
+#   --build-arg PLATFORM_APT_OPTIONS=signed-by=/etc/apt/trusted.gpg.d/simaai.gpg
 ARG PLATFORM_CHANNEL=daily
-ARG PLATFORM_REPOSITORY=http://sw-web.eng.sima.ai/deb/daily
-ARG PLATFORM_ORIGIN=sw-web.eng.sima.ai
+ARG PLATFORM_REPOSITORY=https://debian.neat.sima.ai/daily
+ARG PLATFORM_ORIGIN=debian.neat.sima.ai
+ARG PLATFORM_APT_OPTIONS="arch=arm64 trusted=yes"
 # The daily build flashed on the DevKits, which must be the one the Neat ref's
 # internals snapshot targets (its EV74 firmware activates only on that exact
 # kernel build). Every platform package the image installs, and the sysroot
 # below, are pinned to it so image and board agree; the channel itself carries
 # dozens of builds and a bare "3.0.0" matches none.
-ARG PLATFORM_BUILD=2038
+ARG PLATFORM_BUILD=2121
 ARG PALETTE_BUILD="3.0.0~git*-${PLATFORM_BUILD}"
 ARG LIBC_DEV_VERSION="6.18.3-${PLATFORM_BUILD}"
 # The cross sysroot under /opt/toolchain is ~6 GB and no native build needs
@@ -42,14 +46,15 @@ RUN dpkg --add-architecture arm64
 RUN apt-get clean && \
     apt-get update --allow-releaseinfo-change && \
     apt-get install -y apt-utils wget pip gnupg ca-certificates
-RUN wget --no-check-certificate -O - http://sw-web.eng.sima.ai/deb/simaai.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/simaai.gpg
 # The daily suites are signed with the release key (4F87A7B80CFC8F4B), which
-# sw-web's own simaai.gpg does not carry -- only repo.sima.ai's does. Append it
-# or apt refuses the suite as unsigned (SOCSW-6003).
-RUN wget --no-check-certificate -O - https://repo.sima.ai/elxr/deb/simaai.gpg | gpg --dearmor >> /etc/apt/trusted.gpg.d/simaai.gpg
-RUN chmod 644 /etc/apt/trusted.gpg.d/simaai.gpg
+# sw-web's own simaai.gpg does not carry -- only repo.sima.ai's does (SOCSW-6003).
+# sw-web's key is added only when building against sw-web: it is unreachable off VPN.
+RUN wget --no-check-certificate -O - https://repo.sima.ai/elxr/deb/simaai.gpg | gpg --dearmor > /etc/apt/trusted.gpg.d/simaai.gpg && \
+    case "${PLATFORM_REPOSITORY}" in *sw-web*) \
+      wget --no-check-certificate -O - http://sw-web.eng.sima.ai/deb/simaai.gpg | gpg --dearmor >> /etc/apt/trusted.gpg.d/simaai.gpg ;; esac && \
+    chmod 644 /etc/apt/trusted.gpg.d/simaai.gpg
 
-RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/simaai.gpg] ${PLATFORM_REPOSITORY} agate non-free" > /etc/apt/sources.list.d/simaai.list
+RUN echo "deb [${PLATFORM_APT_OPTIONS}] ${PLATFORM_REPOSITORY} agate non-free" > /etc/apt/sources.list.d/simaai.list
 
 # Platform packages win over eLxr's own (kernel headers, libcamera, ...), as on
 # the board, and within the channel the DevKit build wins over newer dailies.

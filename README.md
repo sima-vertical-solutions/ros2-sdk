@@ -9,11 +9,12 @@ and publishes ARM64-only images to GitHub Container Registry.
 This branch targets platform 3.0: eLxr bianca (Debian 13) on the board and in
 the container (`elxrlinux/elxr:bianca-26.04.02`), Neat Core 0.6 (`develop`,
 ABI 6, `libsima_neat.so.6`), Python 3.13, GCC 14. Platform packages come from
-the signed daily channel and are pinned to the build the Neat ref targets and
-the DevKits are flashed with (`PLATFORM_BUILD`, default 2038 for
-`develop:8b9a54467791`; `PALETTE_BUILD='3.0.0*'` floats to the newest daily
-instead); the internal host is reachable on VPN only, so the image is built
-locally for now:
+the public daily mirror (`https://debian.neat.sima.ai/daily`, unsigned) and are
+pinned to the build the Neat ref targets and the DevKits are flashed with
+(`PLATFORM_BUILD`, default 2121 for `develop:7c7a0765f2d8`;
+`PALETTE_BUILD='3.0.0*'` floats to the newest daily instead). The ros2 deb is
+not on Vulcan yet, so it is vendored by hand and the image is built locally for
+now:
 
 ```bash
 mkdir -p vendor   # the trixie ros2 deb, see "ROS 2 packages"
@@ -58,9 +59,9 @@ SDK Profile = native-arm64
 Platform Version = 3.0.0
 Platform Base = 3.0.0
 Platform Channel = daily
-Platform Repository = http://sw-web.eng.sima.ai/deb/daily
-Neat Core = 0.6.0+develop.8b9a54467791
-Neat Core Spec = develop:8b9a54467791
+Platform Repository = https://debian.neat.sima.ai/daily
+Neat Core = 0.6.0+develop.7c7a0765f2d8
+Neat Core Spec = develop:7c7a0765f2d8
 ROS2 SDK Version = main:0123456789ab:20260805T144500Z
 Version = main:0123456789ab:20260805T144500Z
 ```
@@ -128,7 +129,7 @@ not pass `--sysroot`. The container and Modalix DevKit both use eLxr bianca
 (Debian 13) on ARM64, so native compilation also allows ROS 2 to resolve its
 host-installed development dependencies normally.
 
-The image includes Neat Core 0.6.0, pinned to `develop:8b9a54467791`. Its
+The image includes Neat Core 0.6.0, pinned to `develop:7c7a0765f2d8`. Its
 `sima-neat` runtime and `sima-neat-dev` development packages are installed into
 the native `/usr` paths, so CMake projects can use
 `find_package(SimaNeat REQUIRED)` without a separate Neat installation step.
