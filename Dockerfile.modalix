@@ -61,7 +61,6 @@ RUN echo "Pin-Priority: 999" >> /etc/apt/preferences.d/stable.pref
 # The daily channel carries every build; hold the platform packages to PLATFORM_BUILD.
 RUN printf '\nPackage: simaai-* linux-libc-dev linux-headers-* a65apps cvu-sw libcamera* tvm python3-tvm swsoc-* smifb-* lttng-modules-*\nPin: version *-%s\nPin-Priority: 1001\n' "${PLATFORM_BUILD}" >> /etc/apt/preferences.d/stable.pref
 
-COPY vendor/ros2_*_arm64.deb /tmp/ros2-deb/
 COPY --chmod=0755 scripts/install-ros2.sh /usr/local/bin/install-ros2
 RUN /usr/local/bin/install-ros2
 

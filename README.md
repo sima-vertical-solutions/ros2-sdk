@@ -1,30 +1,17 @@
 # ROS 2 SDK for Modalix
 
-This repository builds the Modalix SDK container from
+This repository builds the Modalix 3.0 SDK container from
 [`Dockerfile.modalix`](https://github.com/SiMa-ai/swsoc-simaai-elxr-doc/blob/master/Dockerfile.modalix)
 and publishes ARM64-only images to GitHub Container Registry.
 
-## Platform 3.0 branch
+## Platform 3.0
 
-This branch targets platform 3.0: Debian 13 (trixie) with eLxr `bianca`, Neat
-Core 0.6 (`develop`, ABI 6, `libsima_neat.so.6`), Python 3.13, GCC 14. Platform
-packages come from the public daily mirror (`https://debian.neat.sima.ai/daily`,
-unsigned) and are pinned to `PLATFORM_BUILD`, the build the Neat ref targets and
-the DevKits are flashed with (2121 for `develop:7c7a0765f2d8`). The ros2 deb is
-not on Vulcan yet, so it is vendored by hand and the image is built locally for
-now:
-
-```bash
-mkdir -p vendor   # the trixie ros2 deb, see "ROS 2 packages"
-docker build --platform linux/arm64 -f Dockerfile.modalix \
-  --build-arg SDK_GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-  --build-arg SDK_GIT_HASH=$(git rev-parse --short=12 HEAD) \
-  --build-arg SDK_BUILD_TIME=$(date -u +%Y%m%dT%H%M%SZ) \
-  -t ghcr.io/sima-vertical-solutions/ros2-sdk-feat-platform-3.0-trixie:local .
-```
-
-Not in this image yet: rtabmap_ros and navigation, which have no platform 3.0
-builds.
+This branch targets platform 3.0: Debian 13 (trixie) with eLxr `bianca` and Neat
+Core 0.6 (`develop`, ABI 6). Platform packages come from the public daily mirror
+(`https://debian.neat.sima.ai/daily`) pinned to `PLATFORM_BUILD`, the build the
+Neat ref targets and the DevKits are flashed with (2121 for
+`develop:7c7a0765f2d8`). `ros2`, `rtabmap_ros` and `navigation` are the `v3.0.0`
+Vulcan builds.
 
 ## Install the SDK
 
@@ -107,16 +94,15 @@ Pull requests build the image without publishing it.
 
 Image builds run on GitHub's native `ubuntu-24.04-arm` runner.
 
-The image installs `ros2` from the trixie build of
-`sima-vertical-solutions/ros2` (branch `sima/jazzy-trixie`), a single
-`ros2_<version>_arm64.deb` that is not published to Vulcan yet: download the
-`ros2-deb-arm64` artifact of its CI run into `vendor/` before building
-(`gh run download <run-id> -R sima-vertical-solutions/ros2 -n ros2-deb-arm64 -D vendor`).
-It also installs the Debian `colcon` components, `vcstool`, and ROS 2 workspace
-build dependencies.
+The image installs `ros2`, `rtabmap-ros`, `simaai-rtabmap`, and
+`vdp-navigation` from the signed SiMa release repository at
+`https://repo.sima.ai/elxr/deb/release`. It also installs the Debian `colcon`
+components, `vcstool`, and ROS 2 workspace build dependencies.
 
 [`scripts/install-ros2.sh`](scripts/install-ros2.sh) contains the installation
-and smoke-test procedure invoked by the Docker build.
+and smoke-test procedure invoked by the Docker build. The script verifies that
+all four SiMa ROS packages are available from the release repository before it
+installs them.
 
 ## Native ARM64 builds
 
