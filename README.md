@@ -8,10 +8,10 @@ and publishes ARM64-only images to GitHub Container Registry.
 
 This branch targets platform 3.0: Debian 13 (trixie) with eLxr `bianca` and the
 latest published Neat Core `develop` artifact. Platform packages come from the
-public daily mirror (`https://debian.neat.sima.ai/daily`) pinned to
-`PLATFORM_BUILD` (currently 2121). Keep that build compatible with the selected
-Neat ref and the DevKit flash. `ros2`, `rtabmap_ros` and `navigation` are the
-`v3.0.0` Vulcan builds.
+public pre-release mirror (`https://debian.neat.sima.ai/pre-release`) pinned to
+`PLATFORM_BUILD` (currently 2372), matching the platform providers recorded by
+the Neat build. Keep the SDK and DevKit platform compatible. `ros2`,
+`rtabmap_ros` and `navigation` are the `v3.0.0` Vulcan builds.
 
 ## Install the SDK
 
@@ -42,8 +42,8 @@ SDK Release = main
 SDK Profile = native-arm64
 Platform Version = 3.0.0
 Platform Base = 3.0.0
-Platform Channel = daily
-Platform Repository = https://debian.neat.sima.ai/daily
+Platform Channel = pre-release
+Platform Repository = https://debian.neat.sima.ai/pre-release
 Neat Core = 0.6.0+develop.7c7a0765f2d8
 Neat Core Spec = develop:7c7a0765f2d8
 ROS2 SDK Version = main:0123456789ab:20260805T144500Z
@@ -118,6 +118,8 @@ build argument to select a release or pin a `branch:sha`. CI passes a fresh
 published artifact instead of reusing a cached install. Local builds should
 also pass `--build-arg SDK_BUILD_TIME="$(date -u +%Y%m%dT%H%M%SZ)"` to refresh it.
 The resolved ref is recorded in `/etc/sdk-release` for matching board installs.
+The image build also links a native executable against `SimaNeat::sima_neat`
+to reject missing transitive runtime symbols before publishing the image.
 
 The `sima-neat` runtime and `sima-neat-dev` development packages are installed into
 the native `/usr` paths, so CMake projects can use

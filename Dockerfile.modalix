@@ -1,11 +1,11 @@
-# Generated Dockerfile for modalix Build:daily[3.0.0]
+# Modalix 3.0 SDK with the platform cohort used by Neat develop.
 
 FROM debian:trixie
 
 ARG BASE_SDK_VERSION=3.0.0
 # Keep PLATFORM_BUILD compatible with the selected Neat ref.
 ARG NEAT_CORE_SPEC=develop
-ARG PLATFORM_BUILD=2121
+ARG PLATFORM_BUILD=2372
 
 # List of additional packages that are to be deployed in SDK sysroot
 ARG SDK_PKG_LIST
@@ -30,7 +30,7 @@ RUN chmod 644 /etc/apt/trusted.gpg.d/simaai.gpg
 
 RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/elxr.gpg] https://mirror.elxr.dev/elxr bianca main" > /etc/apt/sources.list.d/elxr.list
 RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/fluentbit.gpg] https://packages.fluentbit.io/debian/trixie trixie main" >> /etc/apt/sources.list.d/elxr.list
-RUN echo "deb [arch=arm64 trusted=yes] https://debian.neat.sima.ai/daily agate non-free" >> /etc/apt/sources.list.d/elxr.list
+RUN echo "deb [arch=arm64 trusted=yes] https://debian.neat.sima.ai/pre-release agate non-free" >> /etc/apt/sources.list.d/elxr.list
 
 RUN apt-get update --allow-releaseinfo-change && \
     apt-get install -y --no-install-recommends \
@@ -58,8 +58,8 @@ RUN apt-get update --allow-releaseinfo-change && \
 RUN echo "Package: *" > /etc/apt/preferences.d/stable.pref
 RUN echo "Pin: origin \"debian.neat.sima.ai\"" >> /etc/apt/preferences.d/stable.pref
 RUN echo "Pin-Priority: 999" >> /etc/apt/preferences.d/stable.pref
-# The daily channel carries every build; hold the platform packages to PLATFORM_BUILD.
-RUN printf '\nPackage: simaai-* linux-libc-dev linux-headers-* a65apps cvu-sw libcamera* tvm python3-tvm swsoc-* smifb-* lttng-modules-*\nPin: version *-%s\nPin-Priority: 1001\n' "${PLATFORM_BUILD}" >> /etc/apt/preferences.d/stable.pref
+# Platform packages and kernel headers use different pre-release version formats.
+RUN printf '\nPackage: simaai-* a65apps cvu-sw libcamera* tvm python3-tvm swsoc-* smifb-* lttng-modules-*\nPin: version *~pre%s\nPin-Priority: 1001\n\nPackage: linux-libc-dev linux-headers-*\nPin: version *-%s\nPin-Priority: 1001\n' "${PLATFORM_BUILD}" "${PLATFORM_BUILD}" >> /etc/apt/preferences.d/stable.pref
 
 COPY --chmod=0755 scripts/install-ros2.sh /usr/local/bin/install-ros2
 RUN /usr/local/bin/install-ros2
@@ -124,7 +124,7 @@ RUN if uname -a | grep -q '#[0-9]*-Ubuntu'; then \
 RUN if [ "x86_64" = "x86_64" ]; then apt update --allow-releaseinfo-change && apt install \
     arch-test -y; fi
 
-RUN python3 /opt/bin/simaai_setup_sdk.py modalix "3.0.0~git*-${PLATFORM_BUILD}" \
+RUN python3 /opt/bin/simaai_setup_sdk.py modalix "${BASE_SDK_VERSION}~pre${PLATFORM_BUILD}" \
 	"6.18.3-${PLATFORM_BUILD}" \
 	"${SDK_PKG_LIST}"
 
@@ -142,6 +142,8 @@ COPY --chmod=0755 scripts/install-neat-core.sh /usr/local/bin/install-neat-core
 # CI passes a fresh timestamp so mutable Neat refs are resolved on every build.
 ARG SDK_BUILD_TIME="unknown-time"
 RUN NEAT_CORE_SPEC="${NEAT_CORE_SPEC}" /usr/local/bin/install-neat-core
+COPY --chmod=0755 scripts/check-native-neat-link.sh /usr/local/bin/check-native-neat-link
+RUN /usr/local/bin/check-native-neat-link
 
 COPY --chmod=0755 scripts/install-github-tools.sh /usr/local/bin/install-github-tools
 RUN /usr/local/bin/install-github-tools
@@ -161,8 +163,8 @@ ARG SDK_GIT_BRANCH="unknown"
 ARG SDK_GIT_HASH="nogit"
 ARG SDK_TYPE="ros2-sdk"
 ARG SDK_PROFILE="native-arm64"
-ARG PLATFORM_CHANNEL="daily"
-ARG PLATFORM_REPOSITORY="https://debian.neat.sima.ai/daily"
+ARG PLATFORM_CHANNEL="pre-release"
+ARG PLATFORM_REPOSITORY="https://debian.neat.sima.ai/pre-release"
 COPY --chmod=0755 scripts/write-sdk-release.sh /usr/local/bin/write-sdk-release
 # NEAT_CORE_VERSION is read back from dpkg, not passed in: the spec above is a ref, and the
 # version it resolves to is only knowable after the install. Deriving it here means
