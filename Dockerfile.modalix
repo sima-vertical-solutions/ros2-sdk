@@ -3,8 +3,8 @@
 FROM debian:trixie
 
 ARG BASE_SDK_VERSION=3.0.0
-# develop targets platform build 2121; PLATFORM_BUILD must match it.
-ARG NEAT_CORE_SPEC=develop:7c7a0765f2d8
+# Keep PLATFORM_BUILD compatible with the selected Neat ref.
+ARG NEAT_CORE_SPEC=develop
 ARG PLATFORM_BUILD=2121
 
 # List of additional packages that are to be deployed in SDK sysroot
@@ -139,6 +139,8 @@ RUN /usr/local/bin/install-sima-cli
 RUN printf 'SDK Type = ros2-sdk\nPlatform Version = %s\nPlatform Base = %s\n' \
         "${BASE_SDK_VERSION}" "${BASE_SDK_VERSION}" > /etc/sdk-release
 COPY --chmod=0755 scripts/install-neat-core.sh /usr/local/bin/install-neat-core
+# CI passes a fresh timestamp so mutable Neat refs are resolved on every build.
+ARG SDK_BUILD_TIME="unknown-time"
 RUN NEAT_CORE_SPEC="${NEAT_CORE_SPEC}" /usr/local/bin/install-neat-core
 
 COPY --chmod=0755 scripts/install-github-tools.sh /usr/local/bin/install-github-tools
@@ -157,7 +159,6 @@ ARG SDK_PRODUCT_NAME="SiMa.ai ROS2 SDK"
 ARG SDK_RELEASE_TAG=""
 ARG SDK_GIT_BRANCH="unknown"
 ARG SDK_GIT_HASH="nogit"
-ARG SDK_BUILD_TIME="unknown-time"
 ARG SDK_TYPE="ros2-sdk"
 ARG SDK_PROFILE="native-arm64"
 ARG PLATFORM_CHANNEL="daily"

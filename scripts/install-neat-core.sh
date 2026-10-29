@@ -2,8 +2,7 @@
 
 set -euo pipefail
 
-# WHAT to install, as a sima-cli ref: a release tag ("v0.6.0") or branch:sha. The Dockerfile
-# always passes it; this default only covers a hand-run, so keep it on the pinned ref.
+# Accept a release, branch, or branch:sha; default to the latest published develop artifact.
 readonly NEAT_CORE_SPEC="${NEAT_CORE_SPEC:-develop}"
 # sima-neat is the package the installed version is read from.
 readonly NEAT_STAMP_PACKAGE=sima-neat

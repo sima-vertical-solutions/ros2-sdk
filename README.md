@@ -6,12 +6,12 @@ and publishes ARM64-only images to GitHub Container Registry.
 
 ## Platform 3.0
 
-This branch targets platform 3.0: Debian 13 (trixie) with eLxr `bianca` and Neat
-Core 0.6 (`develop`, ABI 6). Platform packages come from the public daily mirror
-(`https://debian.neat.sima.ai/daily`) pinned to `PLATFORM_BUILD`, the build the
-Neat ref targets and the DevKits are flashed with (2121 for
-`develop:7c7a0765f2d8`). `ros2`, `rtabmap_ros` and `navigation` are the `v3.0.0`
-Vulcan builds.
+This branch targets platform 3.0: Debian 13 (trixie) with eLxr `bianca` and the
+latest published Neat Core `develop` artifact. Platform packages come from the
+public daily mirror (`https://debian.neat.sima.ai/daily`) pinned to
+`PLATFORM_BUILD` (currently 2121). Keep that build compatible with the selected
+Neat ref and the DevKit flash. `ros2`, `rtabmap_ros` and `navigation` are the
+`v3.0.0` Vulcan builds.
 
 ## Install the SDK
 
@@ -112,8 +112,14 @@ not pass `--sysroot`. The container and Modalix DevKit both use Debian 13 on
 ARM64, so native compilation also allows ROS 2 to resolve its host-installed
 development dependencies normally.
 
-The image includes Neat Core 0.6.0, pinned to `develop:7c7a0765f2d8`. Its
-`sima-neat` runtime and `sima-neat-dev` development packages are installed into
+The image installs `core@develop` by default. Override the `NEAT_CORE_SPEC`
+build argument to select a release or pin a `branch:sha`. CI passes a fresh
+`SDK_BUILD_TIME` before the Neat install step so each build resolves the latest
+published artifact instead of reusing a cached install. Local builds should
+also pass `--build-arg SDK_BUILD_TIME="$(date -u +%Y%m%dT%H%M%SZ)"` to refresh it.
+The resolved ref is recorded in `/etc/sdk-release` for matching board installs.
+
+The `sima-neat` runtime and `sima-neat-dev` development packages are installed into
 the native `/usr` paths, so CMake projects can use
 `find_package(SimaNeat REQUIRED)` without a separate Neat installation step.
 
