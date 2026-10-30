@@ -7,10 +7,11 @@ and publishes ARM64-only images to GitHub Container Registry.
 ## Platform 3.0
 
 This branch targets platform 3.0: Debian 13 (trixie) with eLxr `bianca` and the
-latest published Neat Core `develop` artifact. Platform packages come from the
-public pre-release mirror (`https://debian.neat.sima.ai/pre-release`) pinned to
-`PLATFORM_BUILD` (currently 2372), matching the platform providers recorded by
-the Neat build. Keep the SDK and DevKit platform compatible. `ros2`,
+latest published Neat Core `develop` artifact. The target DevKit BSP is
+[`3.0.0_pre-release_master_B2469`](https://artifacts.eng.sima.ai/artifactory/soc-images/elxr/bsp/modalix/3.0.0_pre-release_master_B2469/).
+The Dockerfile currently requests platform packages from the public pre-release
+mirror (`https://debian.neat.sima.ai/pre-release`) with `PLATFORM_BUILD=2469`.
+Keep the SDK, Neat Core, and DevKit platform compatible. `ros2`,
 `rtabmap_ros` and `navigation` are the `v3.0.0` Vulcan builds.
 
 ## Install the SDK

@@ -5,7 +5,7 @@ FROM debian:trixie
 ARG BASE_SDK_VERSION=3.0.0
 # Keep PLATFORM_BUILD compatible with the selected Neat ref.
 ARG NEAT_CORE_SPEC=develop
-ARG PLATFORM_BUILD=2372
+ARG PLATFORM_BUILD=2469
 
 # List of additional packages that are to be deployed in SDK sysroot
 ARG SDK_PKG_LIST
