@@ -3,9 +3,7 @@
 FROM debian:trixie
 
 ARG BASE_SDK_VERSION=3.0.0
-# develop targets platform build 2121; PLATFORM_BUILD must match it.
-ARG NEAT_CORE_SPEC=develop:7c7a0765f2d8
-ARG PLATFORM_BUILD=2121
+ARG NEAT_CORE_SPEC=v0.6.0
 
 # List of additional packages that are to be deployed in SDK sysroot
 ARG SDK_PKG_LIST
@@ -30,7 +28,7 @@ RUN chmod 644 /etc/apt/trusted.gpg.d/simaai.gpg
 
 RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/elxr.gpg] https://mirror.elxr.dev/elxr bianca main" > /etc/apt/sources.list.d/elxr.list
 RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/fluentbit.gpg] https://packages.fluentbit.io/debian/trixie trixie main" >> /etc/apt/sources.list.d/elxr.list
-RUN echo "deb [arch=arm64 trusted=yes] https://debian.neat.sima.ai/daily agate non-free" >> /etc/apt/sources.list.d/elxr.list
+RUN echo "deb [arch=arm64 trusted=yes] https://debian.neat.sima.ai/release agate non-free" >> /etc/apt/sources.list.d/elxr.list
 
 RUN apt-get update --allow-releaseinfo-change && \
     apt-get install -y --no-install-recommends \
@@ -58,8 +56,6 @@ RUN apt-get update --allow-releaseinfo-change && \
 RUN echo "Package: *" > /etc/apt/preferences.d/stable.pref
 RUN echo "Pin: origin \"debian.neat.sima.ai\"" >> /etc/apt/preferences.d/stable.pref
 RUN echo "Pin-Priority: 999" >> /etc/apt/preferences.d/stable.pref
-# The daily channel carries every build; hold the platform packages to PLATFORM_BUILD.
-RUN printf '\nPackage: simaai-* linux-libc-dev linux-headers-* a65apps cvu-sw libcamera* tvm python3-tvm swsoc-* smifb-* lttng-modules-*\nPin: version *-%s\nPin-Priority: 1001\n' "${PLATFORM_BUILD}" >> /etc/apt/preferences.d/stable.pref
 
 COPY --chmod=0755 scripts/install-ros2.sh /usr/local/bin/install-ros2
 RUN /usr/local/bin/install-ros2
@@ -124,8 +120,8 @@ RUN if uname -a | grep -q '#[0-9]*-Ubuntu'; then \
 RUN if [ "x86_64" = "x86_64" ]; then apt update --allow-releaseinfo-change && apt install \
     arch-test -y; fi
 
-RUN python3 /opt/bin/simaai_setup_sdk.py modalix "3.0.0~git*-${PLATFORM_BUILD}" \
-	"6.18.3-${PLATFORM_BUILD}" \
+RUN python3 /opt/bin/simaai_setup_sdk.py modalix "3.0.0*" \
+	"6.18.3-*" \
 	"${SDK_PKG_LIST}"
 
 COPY --chmod=0755 scripts/install-realsense.sh /usr/local/bin/install-realsense
@@ -160,8 +156,8 @@ ARG SDK_GIT_HASH="nogit"
 ARG SDK_BUILD_TIME="unknown-time"
 ARG SDK_TYPE="ros2-sdk"
 ARG SDK_PROFILE="native-arm64"
-ARG PLATFORM_CHANNEL="daily"
-ARG PLATFORM_REPOSITORY="https://debian.neat.sima.ai/daily"
+ARG PLATFORM_CHANNEL="release"
+ARG PLATFORM_REPOSITORY="https://debian.neat.sima.ai/release"
 COPY --chmod=0755 scripts/write-sdk-release.sh /usr/local/bin/write-sdk-release
 # NEAT_CORE_VERSION is read back from dpkg, not passed in: the spec above is a ref, and the
 # version it resolves to is only knowable after the install. Deriving it here means
