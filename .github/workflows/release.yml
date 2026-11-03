@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_name:
-        description: Release tag to create from main, for example v2.1.3
+        description: Release tag to create from main, for example v3.0.0
         required: true
         type: string
 
@@ -31,7 +31,7 @@ jobs:
           set -euo pipefail
           tag="${RELEASE_TAG_INPUT}"
           if [[ ! "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([._-][0-9A-Za-z]+)*$ ]]; then
-            echo "Release tag must look like v2.1.3, got: ${tag}" >&2
+            echo "Release tag must look like v3.0.0, got: ${tag}" >&2
             exit 1
           fi
           echo "version=${tag#v}" >> "${GITHUB_OUTPUT}"
@@ -73,7 +73,7 @@ jobs:
           set -euo pipefail
           tag="${RELEASE_TAG_INPUT}"
           if [[ ! "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([._-][0-9A-Za-z]+)*$ ]]; then
-            echo "Release tag must look like v2.1.3, got: ${tag}" >&2
+            echo "Release tag must look like v3.0.0, got: ${tag}" >&2
             exit 1
           fi
           if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then

@@ -4,9 +4,8 @@
 # https://sima-ai.atlassian.net/wiki/spaces/STMS/pages/3902799894/
 # Setup+ROS2+in+eLxr+on+the+Board
 #
-# The ROS 2 packages come from Vulcan via sima-cli. repo.sima.ai stays
-# configured in the image for the platform packages -- simaai-sdk-tools, the
-# kernel headers and so on -- but no longer serves the ROS 2 stack.
+# The ROS 2 packages come from Vulcan via sima-cli. Platform packages come from
+# the release suite at debian.neat.sima.ai.
 
 set -euo pipefail
 
