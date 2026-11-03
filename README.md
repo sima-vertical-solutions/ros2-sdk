@@ -6,12 +6,10 @@ and publishes ARM64-only images to GitHub Container Registry.
 
 ## Platform 3.0
 
-This branch targets platform 3.0: Debian 13 (trixie) with eLxr `bianca` and Neat
-Core 0.6 (`develop`, ABI 6). Platform packages come from the public daily mirror
-(`https://debian.neat.sima.ai/daily`) pinned to `PLATFORM_BUILD`, the build the
-Neat ref targets and the DevKits are flashed with (2121 for
-`develop:7c7a0765f2d8`). `ros2`, `rtabmap_ros` and `navigation` are the `v3.0.0`
-Vulcan builds.
+This image targets platform 3.0 GA: Debian 13 (trixie) with eLxr `bianca` and Neat
+Core `v0.6.0` (ABI 6). Platform packages come from the public release suite
+(`https://debian.neat.sima.ai/release`). `ros2`, `rtabmap_ros` and `navigation`
+are the `v3.0.0` Vulcan builds.
 
 ## Install the SDK
 
@@ -42,10 +40,10 @@ SDK Release = main
 SDK Profile = native-arm64
 Platform Version = 3.0.0
 Platform Base = 3.0.0
-Platform Channel = daily
-Platform Repository = https://debian.neat.sima.ai/daily
-Neat Core = 0.6.0+develop.7c7a0765f2d8
-Neat Core Spec = develop:7c7a0765f2d8
+Platform Channel = release
+Platform Repository = https://debian.neat.sima.ai/release
+Neat Core = 0.6.0
+Neat Core Spec = v0.6.0
 ROS2 SDK Version = main:0123456789ab:20260805T144500Z
 Version = main:0123456789ab:20260805T144500Z
 ```
@@ -112,7 +110,7 @@ not pass `--sysroot`. The container and Modalix DevKit both use Debian 13 on
 ARM64, so native compilation also allows ROS 2 to resolve its host-installed
 development dependencies normally.
 
-The image includes Neat Core 0.6.0, pinned to `develop:7c7a0765f2d8`. Its
+The image includes Neat Core `v0.6.0`. Its
 `sima-neat` runtime and `sima-neat-dev` development packages are installed into
 the native `/usr` paths, so CMake projects can use
 `find_package(SimaNeat REQUIRED)` without a separate Neat installation step.

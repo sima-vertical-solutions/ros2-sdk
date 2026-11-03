@@ -1,4 +1,4 @@
-# Generated Dockerfile for modalix Build:daily[3.0.0]
+# Generated Dockerfile for modalix Build:release[3.0.0]
 
 FROM debian:trixie
 
