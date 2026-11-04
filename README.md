@@ -8,7 +8,7 @@ and publishes ARM64-only images to GitHub Container Registry.
 
 This image targets platform 3.0 GA: Debian 13 (trixie) with eLxr `bianca` and Neat
 Core `v0.6.0` (ABI 6). Platform packages come from the public release suite
-(`https://debian.neat.sima.ai/release`). `ros2`, `rtabmap_ros` and `navigation`
+(`https://repo.sima.ai/elxr/deb/release`). `ros2`, `rtabmap_ros` and `navigation`
 are the `v3.0.0` Vulcan builds.
 
 ## Install the SDK
@@ -41,7 +41,7 @@ SDK Profile = native-arm64
 Platform Version = 3.0.0
 Platform Base = 3.0.0
 Platform Channel = release
-Platform Repository = https://debian.neat.sima.ai/release
+Platform Repository = https://repo.sima.ai/elxr/deb/release
 Neat Core = 0.6.0
 Neat Core Spec = v0.6.0
 ROS2 SDK Version = main:0123456789ab:20260805T144500Z

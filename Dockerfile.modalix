@@ -28,7 +28,7 @@ RUN chmod 644 /etc/apt/trusted.gpg.d/simaai.gpg
 
 RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/elxr.gpg] https://mirror.elxr.dev/elxr bianca main" > /etc/apt/sources.list.d/elxr.list
 RUN echo "deb [signed-by=/etc/apt/trusted.gpg.d/fluentbit.gpg] https://packages.fluentbit.io/debian/trixie trixie main" >> /etc/apt/sources.list.d/elxr.list
-RUN echo "deb [arch=arm64 trusted=yes] https://debian.neat.sima.ai/release agate non-free" >> /etc/apt/sources.list.d/elxr.list
+RUN echo "deb [arch=arm64 signed-by=/etc/apt/trusted.gpg.d/simaai.gpg] https://repo.sima.ai/elxr/deb/release agate non-free" >> /etc/apt/sources.list.d/elxr.list
 
 RUN apt-get update --allow-releaseinfo-change && \
     apt-get install -y --no-install-recommends \
@@ -54,7 +54,7 @@ RUN apt-get update --allow-releaseinfo-change && \
 	simaai-sdk-tools
 
 RUN echo "Package: *" > /etc/apt/preferences.d/stable.pref
-RUN echo "Pin: origin \"debian.neat.sima.ai\"" >> /etc/apt/preferences.d/stable.pref
+RUN echo "Pin: origin \"repo.sima.ai\"" >> /etc/apt/preferences.d/stable.pref
 RUN echo "Pin-Priority: 999" >> /etc/apt/preferences.d/stable.pref
 
 COPY --chmod=0755 scripts/install-ros2.sh /usr/local/bin/install-ros2
@@ -157,7 +157,7 @@ ARG SDK_BUILD_TIME="unknown-time"
 ARG SDK_TYPE="ros2-sdk"
 ARG SDK_PROFILE="native-arm64"
 ARG PLATFORM_CHANNEL="release"
-ARG PLATFORM_REPOSITORY="https://debian.neat.sima.ai/release"
+ARG PLATFORM_REPOSITORY="https://repo.sima.ai/elxr/deb/release"
 COPY --chmod=0755 scripts/write-sdk-release.sh /usr/local/bin/write-sdk-release
 # NEAT_CORE_VERSION is read back from dpkg, not passed in: the spec above is a ref, and the
 # version it resolves to is only knowable after the install. Deriving it here means

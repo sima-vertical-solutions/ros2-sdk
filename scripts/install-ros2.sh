@@ -5,7 +5,7 @@
 # Setup+ROS2+in+eLxr+on+the+Board
 #
 # The ROS 2 packages come from Vulcan via sima-cli. Platform packages come from
-# the release suite at debian.neat.sima.ai.
+# the release suite at repo.sima.ai.
 
 set -euo pipefail
 
