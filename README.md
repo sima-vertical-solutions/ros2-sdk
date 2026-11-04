@@ -1,8 +1,15 @@
 # ROS 2 SDK for Modalix
 
-This repository builds the Modalix 2.1.3 SDK container from
+This repository builds the Modalix 3.0 SDK container from
 [`Dockerfile.modalix`](https://github.com/SiMa-ai/swsoc-simaai-elxr-doc/blob/master/Dockerfile.modalix)
 and publishes ARM64-only images to GitHub Container Registry.
+
+## Platform 3.0
+
+This image targets platform 3.0 GA: Debian 13 (trixie) with eLxr `bianca` and Neat
+Core `v0.6.0` (ABI 6). Platform packages come from the public release suite
+(`https://debian.neat.sima.ai/release`). `ros2`, `rtabmap_ros` and `navigation`
+are the `v3.0.0` Vulcan builds.
 
 ## Install the SDK
 
@@ -31,12 +38,12 @@ Product Name = SiMa.ai ROS2 SDK
 SDK Type = ros2-sdk
 SDK Release = main
 SDK Profile = native-arm64
-Platform Version = 2.1.3
-Platform Base = 2.1.3
+Platform Version = 3.0.0
+Platform Base = 3.0.0
 Platform Channel = release
-Platform Repository = https://repo.sima.ai/elxr/deb/release
-Neat Core = 0.5.1+release-0.5.1-pc.23511f45158a
-Neat Core Spec = release-0.5.1-pc:23511f45158a
+Platform Repository = https://debian.neat.sima.ai/release
+Neat Core = 0.6.0
+Neat Core Spec = v0.6.0
 ROS2 SDK Version = main:0123456789ab:20260805T144500Z
 Version = main:0123456789ab:20260805T144500Z
 ```
@@ -44,21 +51,10 @@ Version = main:0123456789ab:20260805T144500Z
 ## Release workflow
 
 Releases are created with the manual `Release` GitHub Actions workflow. Enter a
-version tag such as `v2.1.3`; the workflow validates the tag, checks out `main`,
+version tag such as `v3.0.0`; the workflow validates the tag, checks out `main`,
 creates the tag and a draft prerelease, and pushes the tag to trigger the ARM64
 image build. The resulting official image records the tag in `SDK Release`,
 `ROS2 SDK Version`, and `Version` in `/etc/sdk-release`.
-
-## Temporary solution for the 2.1.* release line
-
-This repository is a temporary solution for the 2.1.* SDK release line. The
-current SiMa Neat SDK is based on Ubuntu 24.04 and cannot be used to build the
-ROS 2-related packages required for this target, so this repository provides a
-separate Debian-based SDK container for those builds.
-
-The long-term plan is to move the SiMa Neat SDK to a Debian 13 base and
-consolidate ROS 2 and Neat development into a single SDK. Once that transition
-is complete, this separate ROS 2 SDK should no longer be necessary.
 
 ## Images
 
@@ -85,27 +81,25 @@ Pull requests build the image without publishing it.
 
 Image builds run on GitHub's native `ubuntu-24.04-arm` runner.
 
-The image installs `ros2`, `rtabmap-ros`, `simaai-rtabmap`, and
-`vdp-navigation` from the signed SiMa release repository at
-`https://repo.sima.ai/elxr/deb/release`. It also installs the Debian `colcon`
-components, `vcstool`, and ROS 2 workspace build dependencies.
+The image installs `ros2`, `rtabmap_ros` and `navigation` at `v3.0.0` from Vulcan
+via `sima-cli`. It also installs the Debian `colcon` components, `vcstool`, and
+ROS 2 workspace build dependencies.
 
 [`scripts/install-ros2.sh`](scripts/install-ros2.sh) contains the installation
 and smoke-test procedure invoked by the Docker build. The script verifies that
-all four SiMa ROS packages are available from the release repository before it
-installs them.
+the installed packages are the Vulcan builds.
 
 ## Native ARM64 builds
 
 The ROS 2 SDK compiles applications natively with the container's ARM64 GCC and
 G++. It does not activate the Neat SDK's cross-compilation environment and does
-not pass `--sysroot`. The container and Modalix DevKit both use Debian 12 on
+not pass `--sysroot`. The container and Modalix DevKit both use Debian 13 on
 ARM64, so native compilation also allows ROS 2 to resolve its host-installed
 development dependencies normally.
 
-The image includes Neat Core 0.5.1, pinned to the `release-0.5.1-pc` branch.
-Its `sima-neat` runtime and `sima-neat-dev` development packages are installed
-into the native `/usr` paths, so CMake projects can use
+The image includes Neat Core `v0.6.0`. Its
+`sima-neat` runtime and `sima-neat-dev` development packages are installed into
+the native `/usr` paths, so CMake projects can use
 `find_package(SimaNeat REQUIRED)` without a separate Neat installation step.
 
 [`scripts/setup-native-build-env.sh`](scripts/setup-native-build-env.sh) makes

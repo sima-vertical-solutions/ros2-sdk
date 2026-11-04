@@ -4,9 +4,8 @@
 # https://sima-ai.atlassian.net/wiki/spaces/STMS/pages/3902799894/
 # Setup+ROS2+in+eLxr+on+the+Board
 #
-# The ROS 2 packages come from Vulcan via sima-cli. repo.sima.ai stays
-# configured in the image for the platform packages -- simaai-sdk-tools, the
-# kernel headers and so on -- but no longer serves the ROS 2 stack.
+# The ROS 2 packages come from Vulcan via sima-cli. Platform packages come from
+# the release suite at debian.neat.sima.ai.
 
 set -euo pipefail
 
@@ -28,7 +27,7 @@ set -euo pipefail
 #   navigation   replaces vdp-navigation, and installs under
 #                /usr/local/navigation rather than /usr/local/rosbot_navigation.
 #
-# One tag across all three. v2.1.3 marks a SiMa platform release -- it matches
+# One tag across all three. v3.0.0 marks a SiMa platform release -- it matches
 # the Palette version this SDK targets -- and each repository cuts it on
 # whatever its own mainline happens to be called (main, develop, jazzy). The
 # tag is a pointer, not a package version: the debs underneath carry their own
@@ -38,14 +37,14 @@ set -euo pipefail
 # Pinning to the tag rather than a branch is what makes an SDK image
 # reproducible: a branch ref would build a different image next week.
 readonly -a vulcan_packages=(
-    "ros2@v2.1.3"
-    "rtabmap_ros@v2.1.3"
-    "navigation@v2.1.3"
+    "ros2@v3.0.0"
+    "rtabmap_ros@v3.0.0"
+    "navigation@v3.0.0"
 )
 
 readonly SIMA_CLI_INSTALLER="https://artifacts.neat.sima.ai/sima-cli/linux-mac.sh"
 
-# Debian bookworm provides the colcon CLI and its extensions as separate
+# Debian provides the colcon CLI and its extensions as separate
 # packages rather than the Ubuntu-only python3-colcon-common-extensions
 # metapackage used by some ROS documentation. vcstool is likewise the Debian
 # package name.
@@ -84,7 +83,6 @@ readonly -a build_dependencies=(
     libgl-dev
     qtbase5-dev
     libxrandr-dev
-    sip-dev
     libopencv-dev
     libbullet-dev
     pyqt5-dev
@@ -92,8 +90,6 @@ readonly -a build_dependencies=(
     python3-pytest
     python3-pyqt5
     python3-lark
-    python3-sip
-    python3-sip-dev
 )
 
 if [[ "${EUID}" -ne 0 ]]; then
@@ -153,8 +149,8 @@ ros2 pkg prefix rtabmap_slam
 
 # Assert the packages are the Vulcan builds, not repo.sima.ai's. Presence alone
 # would not notice a fallback: the old names still resolve from apt.
-dpkg-query -W -f='${Version}\n' ros2 | grep -qx '2.1.3' \
-    || { echo "ros2 is not the pinned 2.1.3 build" >&2; exit 1; }
+dpkg-query -W -f='${Version}\n' ros2 | grep -qx '3.0.0' \
+    || { echo "ros2 is not the pinned 3.0.0 build" >&2; exit 1; }
 for package in rtabmap rtabmap-ros navigation; do
     dpkg-query -W -f='${Version}\n' "${package}" | grep -q '+' \
         || { echo "${package} lacks a commit suffix -- not a Vulcan build" >&2; exit 1; }
